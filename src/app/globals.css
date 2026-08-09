@@ -1,0 +1,243 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --font-heading: Georgia, "Times New Roman", serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: #fbfaf6;
+  --foreground: #18332a;
+  --card: #fffefa;
+  --card-foreground: #18332a;
+  --popover: #fffefa;
+  --popover-foreground: #18332a;
+  --primary: #075b3b;
+  --primary-foreground: #ffffff;
+  --secondary: #e8f3ed;
+  --secondary-foreground: #174d3a;
+  --muted: #f0f2ee;
+  --muted-foreground: #69746f;
+  --accent: #dff2ea;
+  --accent-foreground: #075b3b;
+  --destructive: #c74737;
+  --border: #d9ddd7;
+  --input: #cdd4ce;
+  --ring: #1e7b59;
+  --chart-1: #075b3b;
+  --chart-2: #58a485;
+  --chart-3: #a4d7c3;
+  --chart-4: #d8a04f;
+  --chart-5: #cc6b59;
+  --radius: 0.75rem;
+  --sidebar: #fffefa;
+  --sidebar-foreground: #18332a;
+  --sidebar-primary: #075b3b;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8f3ed;
+  --sidebar-accent-foreground: #075b3b;
+  --sidebar-border: #d9ddd7;
+  --sidebar-ring: #1e7b59;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(
+        circle at 13% 3%,
+        rgba(255, 255, 255, 0.95),
+        transparent 30rem
+      ),
+      radial-gradient(
+        circle at 88% 12%,
+        rgba(226, 242, 235, 0.45),
+        transparent 25rem
+      );
+    background-attachment: fixed;
+  }
+  html {
+    @apply font-sans;
+    scroll-behavior: smooth;
+    /* Фиксированный хедер лендинга не должен перекрывать якорь раздела. */
+    scroll-padding-top: 5rem;
+  }
+}
+
+/**
+ * Палитра лендинга: светлые премиальные тона — тёплая слоновая кость и мягкий
+ * шалфей на фоне, глубокий изумруд для акцентов, приглушённое золото как тёплый
+ * второй голос. Тёмных заливок нет. Классы живут только внутри `.story`,
+ * поэтому рабочее пространство клиники не затрагивается.
+ */
+.story {
+  --paper: #f6f4ec; /* тёплая слоновая кость — основной фон */
+  --wash: #edf1e8; /* бледный шалфей — чередующиеся секции */
+  --tint: #e0e9dd; /* насыщенный шалфейный панельный тон */
+  --ink: #163329; /* глубокий лес — заголовки и основной текст */
+  --ink-2: #2f4a3f; /* вторичный текст */
+  --ink-3: #46655a; /* приглушённый текст */
+  --primary: #1c6b4a; /* изумрудный акцент */
+  --primary-deep: #124d36;
+  --sage: #6c8d7a;
+  --brass: #9c6b2f; /* приглушённое золото на кремовом */
+  --brass-lift: #b98a44;
+  --rule: rgba(22, 50, 41, 0.14);
+  --rule-strong: rgba(22, 50, 41, 0.22);
+  color: var(--ink);
+  background-color: var(--paper);
+  font-family: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer utilities {
+  .font-editorial {
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 400;
+    letter-spacing: -0.035em;
+  }
+
+  .font-display {
+    font-family: var(--font-playfair), Georgia, serif;
+    font-weight: 400;
+    letter-spacing: -0.03em;
+  }
+
+  /** Надзаголовок-капитель: разрядка держит его читаемым в мелком кегле. */
+  .eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+
+  .rule-top {
+    border-top: 1px solid var(--rule);
+  }
+
+  /* Появление контента при въезде в кадр — вся страница получает движение. */
+  .reveal {
+    opacity: 0;
+    transform: translateY(26px);
+    transition:
+      opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+      transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+  }
+
+  .paper-grain {
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      rgba(22, 50, 41, 0.04) 1px,
+      transparent 0
+    );
+    background-size: 22px 22px;
+  }
+
+  .medical-grid {
+    background-image:
+      linear-gradient(rgba(7, 91, 59, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(7, 91, 59, 0.035) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  .hide-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

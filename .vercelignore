@@ -1,0 +1,12 @@
+.artifacts/
+design/
+db/
+scaffold-ai-dos-temp/
+scripts/
+tests/
+coverage/
+docs/
+*.md
+chatgpt-app-submission.json
+.env*
+tsconfig.tsbuildinfo
