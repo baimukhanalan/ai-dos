@@ -50,3 +50,34 @@ export const lostDemandLabels: Record<string, string> = {
 export function totalLost(items: LostDemandItem[]) {
   return items.reduce((sum, item) => sum + Math.max(0, item.estimatedKzt), 0);
 }
+
+/**
+ * Причины из живого разговорного booking-flow. В отличие от `lostDemandLabels`
+ * это не оценка по соседним таблицам, а исход, записанный в тот момент, когда
+ * он произошёл в диалоге.
+ */
+export const lostReasonLabels: Record<string, string> = {
+  no_slot: "Нет свободного времени",
+  price: "Не устроила цена",
+  no_doctor: "Нет нужного врача",
+  changed_mind: "Передумал записываться",
+  wrong_time: "Не подошло предложенное время",
+  needs_human: "Нужен был человек",
+  identity_unverified: "Личность не подтверждена",
+  abandoned: "Диалог оборвался",
+};
+
+export type BookingOutcomeStats = {
+  booked: number;
+  lost: number;
+  escalated: number;
+  open: number;
+  reasons: Array<{ reason: string; count: number; lostKzt: number }>;
+};
+
+/** Доля попыток записи, доведённых до подтверждённой записи. */
+export function bookingCompletionRate(stats: BookingOutcomeStats) {
+  const closed = stats.booked + stats.lost + stats.escalated;
+  if (closed <= 0) return null;
+  return stats.booked / closed;
+}

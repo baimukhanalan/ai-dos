@@ -9,7 +9,9 @@ import { EscalationActions } from "@/components/portal/escalation-actions";
 import { NotificationActions } from "@/components/portal/notification-actions";
 import { OperationStatusButton } from "@/components/portal/operation-status-button";
 import { WaitlistOfferActions } from "@/components/portal/waitlist-offer-actions";
+import { listBookingSessions } from "@/lib/dal/booking";
 import { getOperationsHub } from "@/lib/dal/portal";
+import { lostReasonLabels } from "@/lib/analytics/revenue";
 
 const escalationReasonLabels: Record<string, string> = {
   emergency: "Экстренный случай",
@@ -22,11 +24,27 @@ const escalationReasonLabels: Record<string, string> = {
   other: "Прочее",
 };
 
+const bookingStageLabels: Record<string, string> = {
+  need_doctor: "Уточняем врача",
+  need_slot: "Подбираем время",
+  confirming: "Ждём подтверждения",
+  done: "Завершён",
+};
+
+const bookingOutcomeLabels: Record<string, string> = {
+  booked: "Записан",
+  lost: "Не записался",
+  escalated: "Передан человеку",
+};
+
 export const metadata: Metadata = { title: "Операции" };
 export const dynamic = "force-dynamic";
 
 export default async function OperationsPage() {
-  const data = await getOperationsHub();
+  const [data, bookingSessions] = await Promise.all([
+    getOperationsHub(),
+    listBookingSessions(),
+  ]);
   const date = new Intl.DateTimeFormat("ru-KZ", {
     timeZone: data.user.timezone,
     dateStyle: "short",
@@ -85,6 +103,40 @@ export default async function OperationsPage() {
       </ModuleSection>
 
       <div className="mt-5 grid gap-5 xl:grid-cols-2">
+        <ModuleSection
+          count={bookingSessions.filter((item) => !item.outcome).length}
+          description="AI ведёт пациента к записи и фиксирует исход каждой попытки — включая причину, по которой запись не состоялась."
+          id="booking"
+          title="Диалоги записи"
+        >
+          {bookingSessions.length ? (
+            bookingSessions.map((item) => (
+              <article className="grid grid-cols-[1fr_auto] gap-3 border-b border-border/70 px-5 py-4 last:border-0" key={item.id}>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold">{item.patientName || "Пациент не идентифицирован"}</p>
+                    {item.outcome && <StatusPill status={item.outcome} />}
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {item.doctorName || "Врач не выбран"} ·{" "}
+                    {item.outcome
+                      ? bookingOutcomeLabels[item.outcome] || item.outcome
+                      : bookingStageLabels[item.stage] || item.stage}
+                    {item.lostReason ? ` · ${lostReasonLabels[item.lostReason] || item.lostReason}` : ""}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {date.format(new Date(item.updatedAt))} · реплик в диалоге: {item.turns}
+                  </p>
+                </div>
+              </article>
+            ))
+          ) : (
+            <EmptyModule>
+              Разговорных записей ещё не было. Здесь появятся диалоги, которые AI довёл до записи — и те, что закрылись с причиной.
+            </EmptyModule>
+          )}
+        </ModuleSection>
+
         <ModuleSection
           count={data.calls.length}
           description="Входящие, исходящие, пропущенные и переданные сотруднику звонки."

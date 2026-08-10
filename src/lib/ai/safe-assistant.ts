@@ -20,6 +20,7 @@ const URGENT_PATTERNS = [
 ];
 
 import { detectIntent } from "@/lib/ai/escalation";
+import { detectLanguage } from "@/lib/ai/language";
 import { matchKnowledgeRule, type KnowledgeRule } from "@/lib/ai/knowledge-rules";
 
 export type ClinicGroundingContext = {
@@ -208,18 +209,12 @@ function groundedReply(
   return undefined;
 }
 
-function languageOf(text: string) {
-  if (/[әғқңөұүһі]/i.test(text)) return "kk";
-  if (/^[\x00-\x7F\s\p{P}\p{N}]+$/u.test(text)) return "en";
-  return "ru";
-}
-
 export function safeAssistantReply(
   message: string,
   context?: ClinicGroundingContext,
 ) {
   const text = message.trim();
-  const language = languageOf(text);
+  const language = detectLanguage(text);
 
   if (URGENT_PATTERNS.some((pattern) => pattern.test(text))) {
     if (language === "kk") {

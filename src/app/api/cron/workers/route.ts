@@ -1,3 +1,4 @@
+import { closeAbandonedBookingSessions } from "@/lib/booking/abandon";
 import { authorizeCron, cronUnauthorized } from "@/lib/cron";
 import { apiError } from "@/lib/errors";
 import {
@@ -28,6 +29,9 @@ export async function GET(request: Request) {
   try {
     const noShow = await runNoShowSweep();
     const reminders = await enqueueAppointmentReminders();
+    // Брошенные диалоги записи закрываем до листа ожидания: часть из них
+    // оставляет пациента в очереди, и предложение уходит в этом же прогоне.
+    const abandonedBookings = await closeAbandonedBookingSessions();
     const waitlist = await runWaitlistMatching();
     const misSync = await runMisSync();
     const outbox = await processOutbox();
@@ -37,6 +41,7 @@ export async function GET(request: Request) {
       ok: true,
       noShow,
       reminders,
+      abandonedBookings,
       waitlist,
       misSync,
       outbox,

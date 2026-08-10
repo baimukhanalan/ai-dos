@@ -9,13 +9,16 @@ import { PageHeader } from "@/components/portal/page-header";
 import { getReports } from "@/lib/dal/portal";
 import {
   getAutonomyStats,
+  getBookingOutcomes,
   getDemandIntelligence,
   getRevenueOverview,
 } from "@/lib/dal/analytics";
 import {
+  bookingCompletionRate,
   conversionRate,
   formatKztShort,
   lostDemandLabels,
+  lostReasonLabels,
   totalLost,
 } from "@/lib/analytics/revenue";
 import type { PatientIntent } from "@/lib/ai/escalation";
@@ -42,12 +45,17 @@ const intentLabels: Record<PatientIntent, string> = {
 const languageLabels: Record<string, string> = { ru: "Русский", kk: "Қазақша", en: "English" };
 
 export default async function ReportsPage() {
-  const [{ summary, daily }, revenue, demand, autonomy] = await Promise.all([
+  const [{ summary, daily }, revenue, demand, autonomy, booking] = await Promise.all([
     getReports(),
     getRevenueOverview(),
     getDemandIntelligence(),
     getAutonomyStats(),
+    getBookingOutcomes(),
   ]);
+  const bookingClosed =
+    booking.stats.booked + booking.stats.lost + booking.stats.escalated;
+  const bookingCompletion = bookingCompletionRate(booking.stats);
+  const reasonMax = Math.max(...booking.stats.reasons.map((item) => item.count), 1);
   const intentMax = Math.max(...demand.intents.map((i) => i.count), 1);
   const languageTotal = demand.languages.reduce((sum, l) => sum + l.count, 0) || 1;
   const conversion = Math.round(conversionRate(revenue.funnel) * 100);
@@ -142,6 +150,78 @@ export default async function ReportsPage() {
               ))}
             </div>
           </div>
+        )}
+      </section>
+
+      {/*
+        Точные причины отказа. В отличие от блока «Куда уходит спрос» выше это
+        не оценка по соседним таблицам, а исход, записанный booking-flow в тот
+        момент, когда пациент отказался.
+      */}
+      <section className="mb-5 rounded-[16px] border border-border bg-white/70 p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">Почему пациенты не записались</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Факт из разговорной записи: причина фиксируется в момент отказа, а не выводится из отмен
+            </p>
+          </div>
+          {bookingCompletion !== null && (
+            <div className="rounded-[12px] border border-border bg-white/70 px-4 py-2.5">
+              <p className="text-xs text-muted-foreground">Доведено до записи</p>
+              <p className="mt-1 font-editorial text-2xl text-[#193229]">
+                {Math.round(bookingCompletion * 100)}%
+              </p>
+            </div>
+          )}
+        </div>
+
+        {bookingClosed + booking.stats.open === 0 ? (
+          <p className="mt-5 text-sm text-muted-foreground">
+            Данные появятся после первых разговорных записей через AI. Пока причины отказа доступны
+            только как оценка в блоке «Куда уходит спрос».
+          </p>
+        ) : (
+          <>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                { label: "Записались", value: booking.stats.booked },
+                { label: "Не записались", value: booking.stats.lost },
+                { label: "Передано человеку", value: booking.stats.escalated },
+                { label: "В диалоге сейчас", value: booking.stats.open },
+              ].map((item) => (
+                <div className="rounded-[12px] border border-border bg-white/60 p-4" key={item.label}>
+                  <p className="text-xs text-muted-foreground">{item.label}</p>
+                  <p className="mt-1 font-editorial text-3xl text-[#193229]">{item.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {booking.stats.reasons.length > 0 && (
+              <div className="mt-5 space-y-2.5 border-t border-border pt-5">
+                {booking.stats.reasons.map((item) => (
+                  <div className="flex items-center gap-3" key={item.reason}>
+                    <span className="w-44 shrink-0 text-sm">
+                      {lostReasonLabels[item.reason] || item.reason}
+                    </span>
+                    <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-[#c08a3e]"
+                        style={{ width: `${(item.count / reasonMax) * 100}%` }}
+                      />
+                    </div>
+                    <span className="w-32 text-right text-sm font-semibold tabular-nums">
+                      {item.count}
+                      {item.lostKzt > 0 ? ` · ${formatKztShort(item.lostKzt)}` : ""}
+                    </span>
+                  </div>
+                ))}
+                <p className="pt-2 text-xs text-muted-foreground">
+                  Сумма — оценка снизу: минимальная опубликованная цена услуг специальности врача.
+                </p>
+              </div>
+            )}
+          </>
         )}
       </section>
 

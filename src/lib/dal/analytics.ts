@@ -2,7 +2,11 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/dal/auth";
-import type { LostDemandItem, RevenueFunnel } from "@/lib/analytics/revenue";
+import type {
+  BookingOutcomeStats,
+  LostDemandItem,
+  RevenueFunnel,
+} from "@/lib/analytics/revenue";
 
 /**
  * Выручка и потерянный спрос за текущий календарный месяц клиники. Считается
@@ -104,6 +108,69 @@ export async function getRevenueOverview() {
     capturedKzt: captured,
     avgPriceKzt: Math.round(avgPrice),
     lostDemand,
+  };
+}
+
+/**
+ * Исходы разговорной записи за месяц. Здесь причина отказа — не производная
+ * от неявок и отмен, а то, что зафиксировал booking-flow в момент разговора:
+ * «не устроила цена», «не подошло время», «диалог оборвался».
+ */
+export async function getBookingOutcomes(): Promise<{ stats: BookingOutcomeStats }> {
+  const user = await requireUser();
+  const sql = db();
+
+  const [totalRows, reasonRows] = await Promise.all([
+    sql`
+      WITH context AS (SELECT timezone FROM tenants WHERE id = ${user.tenantId}),
+      period AS (
+        SELECT date_trunc('month', now() AT TIME ZONE context.timezone) AS start,
+          context.timezone AS tz
+        FROM context
+      )
+      SELECT
+        count(*) FILTER (WHERE b.outcome = 'booked')::int AS booked,
+        count(*) FILTER (WHERE b.outcome = 'lost')::int AS lost,
+        count(*) FILTER (WHERE b.outcome = 'escalated')::int AS escalated,
+        count(*) FILTER (WHERE b.outcome IS NULL)::int AS open
+      FROM booking_sessions b, period p
+      WHERE b.tenant_id = ${user.tenantId}
+        AND (b.created_at AT TIME ZONE p.tz) >= p.start
+    `,
+    sql`
+      WITH context AS (SELECT timezone FROM tenants WHERE id = ${user.tenantId}),
+      period AS (
+        SELECT date_trunc('month', now() AT TIME ZONE context.timezone) AS start,
+          context.timezone AS tz
+        FROM context
+      )
+      SELECT b.lost_reason AS reason, count(*)::int AS count,
+        COALESCE(sum(b.value_kzt), 0)::bigint AS lost_kzt
+      FROM booking_sessions b, period p
+      WHERE b.tenant_id = ${user.tenantId}
+        AND b.outcome = 'lost'
+        AND b.lost_reason IS NOT NULL
+        AND (b.closed_at AT TIME ZONE p.tz) >= p.start
+      GROUP BY b.lost_reason
+      ORDER BY count DESC
+    `,
+  ]);
+
+  const totals = (totalRows[0] || {}) as Record<string, number>;
+  return {
+    stats: {
+      booked: totals.booked || 0,
+      lost: totals.lost || 0,
+      escalated: totals.escalated || 0,
+      open: totals.open || 0,
+      reasons: (reasonRows as Array<{ reason: string; count: number; lost_kzt: number }>).map(
+        (row) => ({
+          reason: row.reason,
+          count: row.count,
+          lostKzt: Number(row.lost_kzt || 0),
+        }),
+      ),
+    },
   };
 }
 
