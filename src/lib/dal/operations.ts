@@ -135,6 +135,13 @@ export async function createAppointmentForTenant(
   actorUserId: string | null,
   input: AppointmentInput,
   source: "portal" | "web" | "mcp" = "portal",
+  /**
+   * `allowOutsideSchedule` снимает только проверку рабочего окна врача и
+   * применяется единственным путём — явным решением администратора принять
+   * пациента вне графика. Защита от пересечения записей остаётся на уровне
+   * БД, поэтому чужой приём перезаписать по-прежнему нельзя.
+   */
+  options: { allowOutsideSchedule?: boolean } = {},
 ) {
   const sql = db();
   const idempotent = (await sql`
@@ -201,7 +208,9 @@ export async function createAppointmentForTenant(
     );
   }
   const end = new Date(start.getTime() + refs.duration_minutes * 60_000);
-  const schedule = (await sql`
+  const schedule = options.allowOutsideSchedule
+    ? [{ valid: true }]
+    : ((await sql`
     SELECT EXISTS (
       SELECT 1
       FROM tenants t
@@ -234,7 +243,7 @@ export async function createAppointmentForTenant(
             )
         )
     ) AS valid
-  `) as Array<{ valid: boolean }>;
+  `) as Array<{ valid: boolean }>);
   if (!schedule[0]?.valid) {
     throw new AppError(
       "outside_schedule",
@@ -267,7 +276,7 @@ export async function createAppointmentForTenant(
       sql`INSERT INTO appointment_history (tenant_id, appointment_id, to_status, changed_by, reason) VALUES (${tenantId}, ${appointmentId}, 'confirmed', ${actorUserId}, 'Запись создана')`,
       sql`INSERT INTO idempotency_keys (tenant_id, key, scope, response_status, response_body) VALUES (${tenantId}, ${input.idempotencyKey}, 'appointment.create', 201, ${JSON.stringify(response)}::jsonb)`,
       sql`INSERT INTO outbox_events (tenant_id, topic, aggregate_type, aggregate_id, payload) VALUES (${tenantId}, 'appointment.confirmed', 'appointment', ${appointmentId}, ${JSON.stringify(response)}::jsonb)`,
-      sql`INSERT INTO audit_events (tenant_id, actor_user_id, action, resource_type, resource_id, metadata) VALUES (${tenantId}, ${actorUserId}, 'appointment.created', 'appointment', ${appointmentId}, ${JSON.stringify({ source })}::jsonb)`,
+      sql`INSERT INTO audit_events (tenant_id, actor_user_id, action, resource_type, resource_id, metadata) VALUES (${tenantId}, ${actorUserId}, 'appointment.created', 'appointment', ${appointmentId}, ${JSON.stringify({ source, outsideSchedule: Boolean(options.allowOutsideSchedule) })}::jsonb)`,
       usageIncrement(sql, tenantId, "appointments_created"),
     ]);
   } catch (error) {

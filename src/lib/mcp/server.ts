@@ -9,6 +9,11 @@ import {
   listPublicServices,
   resolvePublicTenant,
 } from "@/lib/dal/operations";
+import { runBookingTurnForTenant } from "@/lib/dal/booking";
+import { verifyPatientIdentity } from "@/lib/dal/identity";
+import { identityPrompt } from "@/lib/ai/identity";
+import { detectLanguage } from "@/lib/ai/language";
+import { db } from "@/lib/db";
 import { callbackSchema } from "@/lib/validation/operations";
 
 const WIDGET_URI = "ui://widget/ai-dos-v1.html";
@@ -95,7 +100,7 @@ export function createAiDosMcpServer() {
     {
       capabilities: { tools: {}, resources: {} },
       instructions:
-        "AI Dos помогает подобрать услуги, врача и свободное время. Не используйте инструменты для диагностики. Создание callback-заявки всегда требует явного номера телефона пользователя.",
+        "AI Dos помогает подобрать услуги, врача и свободное время. Не используйте инструменты для диагностики. Создание callback-заявки всегда требует явного номера телефона пользователя. Запись через booking_turn возможна только для подтверждённого пациента: нужны телефон и фамилия или дата рождения. Не сообщайте пациенту, что он записан, пока в ответе booking_turn не пришёл outcome 'booked'.",
     },
   );
 
@@ -284,6 +289,87 @@ export function createAiDosMcpServer() {
         title: "Свободное время",
         clinic: tenant.name,
         slots,
+      });
+    },
+  );
+
+  server.registerTool(
+    "booking_turn",
+    {
+      title: "Запись на приём",
+      description:
+        "Drive the clinic's conversational booking flow one turn at a time: pass the patient's exact words and the flow picks the doctor, offers concrete slots and books through the clinic system. Identity is mandatory — always send the patient's phone plus surname or date of birth. Never tell the patient the appointment is made unless outcome is 'booked'.",
+      inputSchema: {
+        message: z
+          .string()
+          .trim()
+          .min(1)
+          .max(1000)
+          .describe("What the patient just said, in their own words"),
+        phone: z.string().trim().min(7).max(24),
+        surname: z.string().trim().min(2).max(120).optional(),
+        birthDate: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional()
+          .describe("ISO date, used as the second identity factor"),
+      },
+      outputSchema: {
+        title: z.string(),
+        clinic: z.string(),
+        status: z.enum(["identity_required", "in_progress", "closed"]),
+        reply: z.string(),
+        stage: z.string().nullable(),
+        outcome: z.string().nullable(),
+        lostReason: z.string().nullable(),
+        slots: z.array(
+          z.object({ startsAt: z.string(), durationMinutes: z.number() }),
+        ),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: false,
+      },
+      _meta: toolMeta("Веду запись…", "Ответ готов"),
+    },
+    async ({ message, phone, surname, birthDate }) => {
+      const tenant = await resolvePublicTenant();
+      // Личность подтверждается до первого хода: иначе анонимный канал плодил
+      // бы сессии и мусорил статистикой отказов.
+      const identity = await verifyPatientIdentity(db(), tenant.id, {
+        phone,
+        fullName: surname,
+        birthDate,
+      });
+      if (identity.status !== "verified") {
+        return textResult({
+          title: "Подтверждение личности",
+          clinic: tenant.name,
+          status: "identity_required",
+          reply: identityPrompt(detectLanguage(message)),
+          stage: null,
+          outcome: null,
+          lostReason: null,
+          slots: [],
+        });
+      }
+
+      const turn = await runBookingTurnForTenant(tenant.id, null, {
+        message,
+        patientId: identity.patientId,
+        channel: "mcp",
+      });
+      return textResult({
+        title: "Запись на приём",
+        clinic: tenant.name,
+        status: turn.outcome ? "closed" : "in_progress",
+        reply: turn.reply,
+        stage: turn.stage,
+        outcome: turn.outcome,
+        lostReason: turn.lostReason,
+        slots: turn.offeredSlots,
       });
     },
   );

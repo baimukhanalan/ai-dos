@@ -1,7 +1,16 @@
 import { classifyEscalation } from "@/lib/ai/escalation";
 import { conversationLanguage, type SupportedLanguage } from "@/lib/ai/language";
 
-export const bookingStages = ["need_doctor", "need_slot", "confirming", "done"] as const;
+export const bookingStages = [
+  "need_doctor",
+  "need_slot",
+  // Слотов нет: спрашиваем, просить ли администратора принять вне графика.
+  "urgent_ask",
+  "confirming",
+  // Запрос у администратора; диалог открыт, решение закроет его.
+  "awaiting_urgent",
+  "done",
+] as const;
 export type BookingStage = (typeof bookingStages)[number];
 
 export const bookingOutcomes = ["booked", "lost", "escalated"] as const;
@@ -44,6 +53,7 @@ export type BookingState = {
 export type BookingEffect =
   | { kind: "none" }
   | { kind: "book"; doctorId: string; startsAt: string }
+  | { kind: "urgent"; doctorId: string | null }
   | {
       kind: "close";
       outcome: BookingOutcome;
@@ -356,16 +366,34 @@ function offerSlots(
   };
 }
 
+/**
+ * Свободного времени нет — но клиника обычно умеет вписать пациента вне
+ * графика. Вместо отказа спрашиваем и, при согласии, отдаём решение
+ * администратору.
+ */
 function noSlotTurn(state: BookingState, language: SupportedLanguage): BookingTurn {
+  return {
+    state: { ...state, stage: "urgent_ask", offeredSlots: [], selectedStartsAt: null },
+    reply: pick(
+      language,
+      "Свободного времени у этого врача сейчас нет. Могу попросить администратора принять вас вне графика — или поставить в лист ожидания. Попросить администратора?",
+      "Бұл дәрігерде қазір бос уақыт жоқ. Әкімшіден кесте сыртында қабылдауды сұрай аламын немесе кезекке қоямын. Әкімшіден сұрайын ба?",
+      "This doctor has no free time right now. I can ask an administrator to fit you in outside the schedule, or add you to the waitlist. Shall I ask the administrator?",
+    ),
+    effect: { kind: "none" },
+  };
+}
+
+function waitlistCloseTurn(state: BookingState, language: SupportedLanguage): BookingTurn {
   return close(
     state,
     "lost",
     "no_slot",
     pick(
       language,
-      "Свободного времени у этого врача сейчас нет. Поставлю вас в лист ожидания — как только слот освободится, мы предложим его первым.",
-      "Бұл дәрігерде қазір бос уақыт жоқ. Сізді кезекке қоямын — орын босаған бойда бірінші болып ұсынамыз.",
-      "This doctor has no free time right now. I’ll add you to the waitlist and offer the first slot that frees up.",
+      "Хорошо, ставлю вас в лист ожидания — как только слот освободится, мы предложим его первым.",
+      "Жақсы, сізді кезекке қоямын — орын босаған бойда бірінші болып ұсынамыз.",
+      "All right, I’m adding you to the waitlist — we’ll offer the first slot that frees up.",
     ),
   );
 }
@@ -424,7 +452,12 @@ export function advanceBooking(state: BookingState, ctx: BookingContext): Bookin
       ? parseSlotChoice(text, current.offeredSlots, ctx.timeZone)
       : null;
 
-  const lost = slotChoice ? null : detectLostSignal(text);
+  // «Нет, не нужно» в ответ на предложение спросить администратора — это ответ
+  // на вопрос, а не отказ от записи: причиной остаётся отсутствие слотов.
+  const answersUrgentAsk =
+    current.stage === "urgent_ask" && parseConfirmation(text) !== "unclear";
+
+  const lost = slotChoice || answersUrgentAsk ? null : detectLostSignal(text);
   if (lost) {
     return close(
       current,
@@ -445,6 +478,35 @@ export function advanceBooking(state: BookingState, ctx: BookingContext): Bookin
           ),
       text.slice(0, 300),
     );
+  }
+
+  if (current.stage === "awaiting_urgent") {
+    return {
+      state: current,
+      reply: pick(
+        language,
+        "Запрос уже у администратора клиники. Как только он ответит, я сразу сообщу.",
+        "Сұрау клиника әкімшісінде. Жауап келген бойда хабарлаймын.",
+        "The request is already with the clinic administrator. I’ll let you know as soon as they respond.",
+      ),
+      effect: { kind: "none" },
+    };
+  }
+
+  if (current.stage === "urgent_ask") {
+    if (parseConfirmation(text) === "yes") {
+      return {
+        state: { ...current, stage: "awaiting_urgent", misses: 0 },
+        reply: pick(
+          language,
+          "Передаю запрос администратору — он решит, можно ли принять вас вне графика, и я сообщу ответ.",
+          "Сұрауды әкімшіге беремін — ол кесте сыртында қабылдау мүмкін бе екенін шешеді, жауабын хабарлаймын.",
+          "I’m passing the request to an administrator — they will decide whether you can be seen outside the schedule, and I’ll tell you the answer.",
+        ),
+        effect: { kind: "urgent", doctorId: current.doctorId },
+      };
+    }
+    return waitlistCloseTurn(current, language);
   }
 
   if (current.stage === "need_doctor") {

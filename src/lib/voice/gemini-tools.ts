@@ -66,6 +66,20 @@ export const geminiLiveTools: Tool[] = [
         },
       },
       {
+        name: "booking_turn",
+        description:
+          "Drive the clinic's conversational booking flow one turn at a time. Pass the patient's exact words; the flow picks the doctor, offers concrete slots, books through the clinic system and records the outcome. Never claim the appointment is made unless the response outcome is 'booked'. Booking can only complete for an identified patient — pass patientId once identity is confirmed, otherwise the flow hands the call to a human.",
+        parametersJsonSchema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            message: { type: "string", minLength: 1, maxLength: 1000 },
+            patientId: { type: "string", format: "uuid" },
+          },
+          required: ["message"],
+        },
+      },
+      {
         name: "create_callback_request",
         description:
           "Create a callback task for clinic staff only after the patient explicitly confirms their phone number and asks for a callback.",

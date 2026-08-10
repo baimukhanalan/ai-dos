@@ -91,9 +91,30 @@ describe("ход разговорной записи", () => {
     expect(turn.effect.kind).toBe("none");
   });
 
-  it("без свободных слотов исход — no_slot, а не молчание", () => {
+  it("без свободных слотов AI не отказывает, а предлагает спросить администратора", () => {
     const turn = advanceBooking(initialBookingState(), ctx("к кардиологу", { slots: [] }));
-    expect(turn.effect).toMatchObject({ kind: "close", outcome: "lost", lostReason: "no_slot" });
+    expect(turn.state.stage).toBe("urgent_ask");
+    expect(turn.effect.kind).toBe("none");
+  });
+
+  it("согласие на приём вне графика уходит администратору, а отказ — в лист ожидания", () => {
+    const asked = advanceBooking(initialBookingState(), ctx("к кардиологу", { slots: [] }));
+
+    const agreed = advanceBooking(asked.state, ctx("да, попросите", { slots: [] }));
+    expect(agreed.state.stage).toBe("awaiting_urgent");
+    expect(agreed.effect).toEqual({ kind: "urgent", doctorId: doctors[0].id });
+
+    const refused = advanceBooking(asked.state, ctx("нет, не нужно", { slots: [] }));
+    expect(refused.effect).toMatchObject({ kind: "close", outcome: "lost", lostReason: "no_slot" });
+  });
+
+  it("пока администратор не ответил, диалог остаётся открытым без новых эффектов", () => {
+    const waiting = advanceBooking(
+      { ...initialBookingState(), stage: "awaiting_urgent", doctorId: doctors[0].id },
+      ctx("ну что там?", { slots: [] }),
+    );
+    expect(waiting.state.stage).toBe("awaiting_urgent");
+    expect(waiting.effect.kind).toBe("none");
   });
 
   it("нет активных врачей — исход no_doctor", () => {

@@ -8,6 +8,7 @@ import {
 import { EscalationActions } from "@/components/portal/escalation-actions";
 import { NotificationActions } from "@/components/portal/notification-actions";
 import { OperationStatusButton } from "@/components/portal/operation-status-button";
+import { UrgentDecision } from "@/components/portal/urgent-decision";
 import { WaitlistOfferActions } from "@/components/portal/waitlist-offer-actions";
 import { listBookingSessions } from "@/lib/dal/booking";
 import { getOperationsHub } from "@/lib/dal/portal";
@@ -235,23 +236,36 @@ export default async function OperationsPage() {
         </ModuleSection>
 
         <ModuleSection
-          count={data.urgentRequests.length}
-          description="Запросы вне графика требуют решения врача или администратора."
+          count={data.urgentRequests.filter((item) => item.status === "pending").length}
+          description="Свободного времени нет, но пациента можно принять вне графика. Решение за человеком: вписать, предложить штатное время или отказать — AI продолжит разговор с этим ответом."
           id="urgent"
           title="Срочные запросы"
         >
           {data.urgentRequests.length ? (
             data.urgentRequests.map((item) => (
-              <article className="grid grid-cols-[1fr_auto] gap-3 border-b border-border/70 px-5 py-4 last:border-0" key={String(item.id)}>
-                <div>
+              <article className="grid gap-3 border-b border-border/70 px-5 py-4 last:border-0 sm:grid-cols-[1fr_auto]" key={String(item.id)}>
+                <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-semibold">{String(item.patient_name || "Пациент не идентифицирован")}</p>
                     <StatusPill status={String(item.status)} />
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">{String(item.reason)}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {String(item.doctor_name || "Врач не выбран")} · {date.format(new Date(String(item.requested_at)))}
+                    {item.proposed_starts_at
+                      ? ` · предложено ${date.format(new Date(String(item.proposed_starts_at)))}`
+                      : ""}
+                  </p>
+                  {item.resolution_note && (
+                    <p className="mt-1 text-xs text-muted-foreground">{String(item.resolution_note)}</p>
+                  )}
                 </div>
                 {item.status === "pending" && (
-                  <OperationStatusButton id={String(item.id)} label="Одобрить" resource="urgent" status="approved" />
+                  <UrgentDecision
+                    doctorId={item.doctor_id ? String(item.doctor_id) : null}
+                    id={String(item.id)}
+                    timezone={data.user.timezone}
+                  />
                 )}
               </article>
             ))

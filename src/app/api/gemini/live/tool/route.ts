@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { requireUser } from "@/lib/dal/auth";
+import { runBookingTurnForTenant } from "@/lib/dal/booking";
 import {
   createCallbackForTenant,
   findAvailableSlots,
@@ -23,6 +24,7 @@ const toolNames = [
   "list_doctors",
   "find_available_slots",
   "list_clinic_branches",
+  "booking_turn",
   "create_callback_request",
 ] as const;
 
@@ -49,6 +51,11 @@ const doctorSchema = z.object({
 const slotsSchema = z.object({
   doctorId: z.string().uuid(),
   days: z.number().int().min(1).max(14).default(7),
+});
+
+const bookingToolSchema = z.object({
+  message: z.string().trim().min(1).max(1000),
+  patientId: z.string().uuid().optional(),
 });
 
 const callbackToolSchema = z.object({
@@ -150,6 +157,17 @@ export async function POST(request: Request) {
       }
       case "list_clinic_branches": {
         data = { branches: await listClinicBranches(user.tenantId) };
+        break;
+      }
+      case "booking_turn": {
+        const args = bookingToolSchema.parse(input.args);
+        // Ход ведёт тот же движок, что и веб-канал, поэтому исход и причина
+        // отказа попадают в общую аналитику независимо от канала.
+        data = await runBookingTurnForTenant(user.tenantId, user.id, {
+          message: args.message,
+          patientId: args.patientId ?? null,
+          channel: "phone",
+        });
         break;
       }
       case "create_callback_request": {

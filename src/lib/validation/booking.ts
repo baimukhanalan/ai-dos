@@ -10,3 +10,23 @@ export const bookingTurnSchema = z.object({
 });
 
 export type BookingTurnRequest = z.infer<typeof bookingTurnSchema>;
+
+const decisionNote = z.string().trim().max(500).optional();
+
+/**
+ * Решение администратора по срочному запросу. `approve` вписывает пациента
+ * вне графика, `offer` предлагает штатное время, `decline` — отказ.
+ */
+export const urgentDecisionSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("approve"),
+    startsAt: z.string().datetime({ offset: true }),
+    note: decisionNote,
+  }),
+  z.object({
+    action: z.literal("offer"),
+    startsAt: z.string().datetime({ offset: true }),
+    note: decisionNote,
+  }),
+  z.object({ action: z.literal("decline"), note: decisionNote }),
+]);

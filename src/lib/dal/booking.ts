@@ -193,6 +193,31 @@ function waitlistStatement(
   `;
 }
 
+/**
+ * Пациент согласился, чтобы его вписали вне графика. Решение принимает
+ * человек: карточка уходит администратору в «Операции» со всем контекстом.
+ */
+async function createUrgentRequest(
+  sql: ReturnType<typeof db>,
+  tenantId: string,
+  session: SessionRow,
+  doctorId: string | null,
+  message: string,
+) {
+  const rows = (await sql`
+    INSERT INTO urgent_requests (
+      tenant_id, patient_id, conversation_id, doctor_id, booking_session_id, reason, status
+    ) VALUES (
+      ${tenantId}, ${session.patient_id}, ${session.conversation_id}, ${doctorId},
+      ${session.id},
+      ${`Свободных слотов нет, пациент просит принять вне графика. Последняя реплика: ${message.slice(0, 400)}`},
+      'pending'
+    )
+    RETURNING id
+  `) as Array<{ id: string }>;
+  return rows[0]?.id ?? null;
+}
+
 function messageStatements(
   sql: ReturnType<typeof db>,
   tenantId: string,
@@ -301,9 +326,21 @@ export async function runBookingTurnForTenant(
     }
   }
 
+  const urgentRequestId =
+    turn.effect.kind === "urgent"
+      ? await createUrgentRequest(
+          sql,
+          tenantId,
+          session,
+          turn.effect.doctorId ?? doctorId,
+          input.message,
+        )
+      : null;
+
   return persistTurn(sql, tenantId, actorUserId, session, turn, {
     doctorId,
     appointmentId,
+    urgentRequestId,
     patientText: input.message,
     timeZone,
   });
@@ -318,6 +355,7 @@ async function persistTurn(
   meta: {
     doctorId: string | null;
     appointmentId: string | null;
+    urgentRequestId: string | null;
     patientText: string;
     timeZone: string;
   },
@@ -340,6 +378,7 @@ async function persistTurn(
         SET stage = ${next.stage}, language = ${next.language},
           doctor_id = ${resolvedDoctorId}, offered_slots = ${JSON.stringify(next.offeredSlots)}::jsonb,
           selected_starts_at = ${next.selectedStartsAt}, misses = ${next.misses},
+          urgent_request_id = COALESCE(${meta.urgentRequestId}::uuid, urgent_request_id),
           turns = turns + 1, updated_at = now()
         WHERE id = ${session.id} AND tenant_id = ${tenantId} AND outcome IS NULL
       `,

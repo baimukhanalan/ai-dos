@@ -38,6 +38,9 @@ export async function closeAbandonedBookingSessions(limit = 100): Promise<Abando
     WHERE b.id IN (
       SELECT id FROM booking_sessions
       WHERE outcome IS NULL
+        -- Диалог, ждущий решения администратора, не брошен: его закроет
+        -- ответ человека, а не таймер.
+        AND stage <> 'awaiting_urgent'
         AND updated_at < now() - ${idle}::interval
       ORDER BY updated_at
       LIMIT ${Math.min(Math.max(limit, 1), 500)}

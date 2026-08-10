@@ -334,6 +334,7 @@ export async function getOperationsHub() {
       `,
       sql`
         SELECT u.id, u.reason, u.status, u.requested_at, u.resolution_note,
+          u.doctor_id, u.proposed_starts_at,
           p.full_name AS patient_name, d.display_name AS doctor_name
         FROM urgent_requests u
         LEFT JOIN patients p ON p.id = u.patient_id AND p.tenant_id = u.tenant_id
