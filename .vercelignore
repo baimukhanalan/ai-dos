@@ -4,6 +4,7 @@ db/
 scaffold-ai-dos-temp/
 scripts/
 tests/
+workers/
 coverage/
 docs/
 *.md

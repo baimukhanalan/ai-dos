@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Внешний воркер DamuMed — отдельный пакет со своим tsconfig и зависимостями.
+    "workers/**",
   ]),
 ]);
 
