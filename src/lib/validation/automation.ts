@@ -3,6 +3,7 @@ import {
   notificationChannels,
   notificationTemplateCodes,
 } from "@/lib/notifications/templates";
+import { scenarioGraphSchema } from "@/lib/scenarios/graph";
 
 export const automationCreateSchema = z.discriminatedUnion("kind", [
   z.object({
@@ -34,3 +35,26 @@ export const automationCreateSchema = z.discriminatedUnion("kind", [
     body: z.string().trim().min(3).max(4000),
   }),
 ]);
+
+export const scenarioSaveSchema = z.object({
+  name: z.string().trim().min(3).max(100),
+  expectedVersion: z.number().int().positive(),
+  expectedRevision: z.number().int().positive(),
+  graph: scenarioGraphSchema,
+  changeSummary: z.string().trim().max(240).optional(),
+});
+
+export const scenarioPublishSchema = z.object({
+  version: z.number().int().positive(),
+  confirmed: z.literal(true),
+});
+
+export const scenarioTestSchema = z.object({
+  version: z.number().int().positive(),
+  outcome: z.enum(["success", "fallback"]),
+});
+
+export const scenarioRollbackSchema = z.object({
+  targetVersion: z.number().int().positive(),
+  confirmed: z.literal(true),
+});

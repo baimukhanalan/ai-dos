@@ -11,8 +11,8 @@ import { notificationChannelLabels } from "@/lib/notifications/templates";
 export const metadata: Metadata = { title: "Автоматизация" };
 export const dynamic = "force-dynamic";
 
-function Row({ title, detail, status }: { title: string; detail: string; status: string }) {
-  return (
+function Row({ title, detail, status, href }: { title: string; detail: string; status: string; href?: string }) {
+  const content = (
     <article className="grid grid-cols-[1fr_auto] gap-3 border-b border-border/70 px-5 py-4 last:border-0">
       <div className="min-w-0">
         <p className="truncate font-semibold">{title}</p>
@@ -21,6 +21,7 @@ function Row({ title, detail, status }: { title: string; detail: string; status:
       <StatusPill status={status} />
     </article>
   );
+  return href ? <Link className="block transition hover:bg-muted/50" href={href}>{content}</Link> : content;
 }
 
 const misStateLabels: Record<string, string> = {
@@ -102,7 +103,7 @@ export default async function AutomationsPage() {
         </ModuleSection>
         <ModuleSection count={data.scenarios.length} description="Запись, перенос, отмена, callback, FAQ и срочные обращения." title="Сценарии">
           {data.scenarios.length ? data.scenarios.map((item) => (
-            <Row key={String(item.id)} title={String(item.name)} detail={`${String(item.trigger_kind)} · версия ${String(item.active_version || 0)} · всего ${String(item.version_count)}`} status={String(item.status)} />
+            <Row href={`/portal/automations/scenarios/${String(item.id)}`} key={String(item.id)} title={String(item.name)} detail={`${String(item.trigger_kind)} · версия ${String(item.active_version || 0)} · всего ${String(item.version_count)} · открыть редактор`} status={String(item.status)} />
           )) : <EmptyModule>Создайте первый черновик сценария справа. Он не начнёт работу без публикации.</EmptyModule>}
         </ModuleSection>
         <ModuleSection count={data.campaigns.length} description="Обзвоны и сообщения только пациентам с подходящим согласием." title="Кампании">

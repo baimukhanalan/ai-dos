@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireRoles } from "@/lib/dal/auth";
 import { apiError } from "@/lib/errors";
 import { automationCreateSchema } from "@/lib/validation/automation";
+import { defaultScenarioGraph, validateScenarioGraph } from "@/lib/scenarios/graph";
 
 export async function POST(request: Request) {
   try {
@@ -13,19 +14,8 @@ export async function POST(request: Request) {
 
     if (input.kind === "scenario") {
       const versionId = randomUUID();
-      const graph = {
-        nodes: [
-          { id: "trigger", type: "trigger", label: input.triggerKind },
-          { id: "intent", type: "intent", label: "Определить намерение" },
-          { id: "handoff", type: "fallback", label: "Передать сотруднику" },
-          { id: "end", type: "end", label: "Завершить" },
-        ],
-        edges: [
-          { from: "trigger", to: "intent" },
-          { from: "intent", to: "handoff", condition: "low_confidence" },
-          { from: "intent", to: "end", condition: "resolved" },
-        ],
-      };
+      const graph = defaultScenarioGraph(input.triggerKind);
+      const validation = validateScenarioGraph(graph);
       await sql.transaction([
         sql`
           INSERT INTO scenarios (
@@ -39,7 +29,7 @@ export async function POST(request: Request) {
             id, tenant_id, scenario_id, version, graph, validation_status, created_by
           ) VALUES (
             ${versionId}, ${user.tenantId}, ${id}, 1, ${JSON.stringify(graph)}::jsonb,
-            'valid', ${user.id}
+            ${validation.valid ? "valid" : "invalid"}, ${user.id}
           )
         `,
         sql`

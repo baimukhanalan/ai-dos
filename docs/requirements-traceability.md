@@ -15,8 +15,8 @@
 | 7. Voice AI | готово | `/portal/voice`: Gemini Live WebSocket, автоязык, VAD, barge-in, запись; отдельный OpenAI SIP webhook |
 | 8. Notifications | готово к подключению | воркер очереди, рендер шаблонов на трёх языках, повторы с backoff, журнал попыток и статус `blocked` без учётных данных провайдера |
 | 9. Waitlist и callback | готово | воркер подбирает освободившийся слот, держит предложение до срока и возвращает запись в очередь; автообзвон требует номера |
-| 10. Scenario Builder | готово | версии графов, draft creation, execution model и UI реестра |
-| 11. Campaigns | готово | draft creation, channels/locales, consent/opt-out filters, contacts и UI |
+| 10. Scenario Builder | готово | визуальный редактор графа, типизированные блоки и tools, safety-проверки, симуляция success/fallback, optimistic locking, неизменяемые опубликованные версии, publish и rollback |
+| 11. Campaigns | следующий релиз | модели, draft creation, channels/locales, consent/opt-out filters, contacts и UI реестра готовы; полноценный конструктор и исполнитель ещё не включены |
 | 12. Analytics и hardening | готово | отчёты, audit, RLS, rate limits, health, feature flags, usage, тесты |
 
 ## 62 раздела требований
@@ -32,7 +32,7 @@
 | 20–21 | лист ожидания и свободные окна | воркер подбора слотов, срок жизни предложения, приём/отказ из портала без двойной записи |
 | 22–24 | срочные случаи, человек, callback | emergency policy, urgent/task/callback models и UI; Escalation Engine с готовой карточкой (intent, причина, сводка, маскированный телефон) |
 | 25–26 | напоминания и no-show | напоминание планируется на «за сутки до визита»; no-show воркер закрывает визит, ставит задачу сотруднику и уведомление пациенту |
-| 27–29 | knowledge, сценарии, кампании | статьи + структурированный Clinic Knowledge Engine (`knowledge_rules`: category/scope/keywords) с адресным матчингом под intent; сценарии и кампании — versioned models |
+| 27–29 | knowledge, сценарии, кампании | статьи + структурированный Clinic Knowledge Engine (`knowledge_rules`: category/scope/keywords) с адресным матчингом под intent; сценарии имеют рабочий versioned visual builder, кампании пока ограничены моделью и черновиками |
 | 30–31 | история и резюме звонка | conversations/messages/calls/transcript/outcome models; завершённый Gemini Live тест сохраняет маскированное резюме и следующий операционный шаг |
 | 32–35 | панели регистратора, врача, admin, superadmin | единый role-aware portal; clinic admin и operations готовы, глобальный SaaS-owner UI ограничен платформенной ролью |
 | 36–38 | аналитика, уведомления, телефония | reports с выручкой (завершённые визиты × цена), воронкой, автономией AI, распределением intent и языков; notification pipeline; SIP number registry/webhook |

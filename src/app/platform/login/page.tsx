@@ -2,13 +2,17 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Brand } from "@/components/brand";
 import { PlatformLoginForm } from "@/components/platform/platform-login-form";
+import { requirePlatformAdmin } from "@/lib/dal/auth";
 import { readSession } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Управление платформой" };
 
 export default async function PlatformLoginPage() {
   const session = await readSession();
-  if (session?.scope === "platform") redirect("/platform");
+  if (session?.scope === "platform") {
+    const validPlatformSession = await requirePlatformAdmin().then(() => true).catch(() => false);
+    if (validPlatformSession) redirect("/platform");
+  }
   return (
     <main className="min-h-screen bg-[#fbfaf6] px-5 py-6 sm:px-8 lg:px-10">
       <div className="mx-auto max-w-[1440px]"><Brand className="text-[28px]" href="/" /></div>

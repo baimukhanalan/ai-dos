@@ -133,6 +133,7 @@ export async function registerTenant(input: RegisterInput) {
       sql`INSERT INTO clinics (id, tenant_id, name, email) VALUES (${clinicId}, ${tenantId}, ${input.clinicName}, ${input.email})`,
       sql`INSERT INTO branches (id, tenant_id, clinic_id, name, address) VALUES (${branchId}, ${tenantId}, ${clinicId}, 'Главный филиал', 'Укажите адрес в настройках')`,
       sql`INSERT INTO roles (id, tenant_id, code, name, system) VALUES (${roleId}, ${tenantId}, 'clinic_admin', 'Администратор клиники', true), (${operatorRoleId}, ${tenantId}, 'operator', 'Регистратор', true), (${doctorRoleId}, ${tenantId}, 'doctor', 'Врач', true)`,
+      sql`INSERT INTO role_permissions (role_id, permission_id) SELECT ${roleId}, id FROM permissions`,
       sql`INSERT INTO role_permissions (role_id, permission_id) SELECT ${operatorRoleId}, id FROM permissions WHERE code = ANY(ARRAY['patients.read','patients.write','schedule.read','appointments.write','conversations.read','conversations.write']::text[])`,
       sql`INSERT INTO role_permissions (role_id, permission_id) SELECT ${doctorRoleId}, id FROM permissions WHERE code = ANY(ARRAY['schedule.read','appointments.write']::text[])`,
       sql`INSERT INTO users (id, tenant_id, email, password_hash, full_name) VALUES (${userId}, ${tenantId}, ${input.email}, ${passwordHash}, ${input.fullName})`,
@@ -511,6 +512,26 @@ export async function requireRoles(allowed: string[]) {
       403,
       "Недостаточно прав для этого действия.",
     );
+  }
+  return user;
+}
+
+export async function requirePermission(permission: string) {
+  const user = await requireUser();
+  const sql = db();
+  const rows = await sql`
+    SELECT 1
+    FROM user_roles ur
+    JOIN roles r ON r.id = ur.role_id AND r.tenant_id = ur.tenant_id
+    JOIN role_permissions rp ON rp.role_id = r.id
+    JOIN permissions p ON p.id = rp.permission_id
+    WHERE ur.user_id = ${user.id}
+      AND ur.tenant_id = ${user.tenantId}
+      AND p.code = ${permission}
+    LIMIT 1
+  `;
+  if (!rows[0]) {
+    throw new AppError("forbidden", 403, "Недостаточно прав для этого действия.");
   }
   return user;
 }
