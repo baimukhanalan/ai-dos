@@ -19,7 +19,11 @@ import {
   Waveform,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
-import { geminiLiveTools } from "@/lib/voice/gemini-tools";
+import {
+  geminiLiveTools,
+  geminiToolErrorResponse,
+  geminiToolSuccessResponse,
+} from "@/lib/voice/gemini-tools";
 import {
   Select,
   SelectContent,
@@ -283,27 +287,17 @@ export function VoiceLab() {
             error?: { message?: string };
           };
           if (!response.ok || !payload.ok) {
-            return {
-              id,
-              name,
-              response: {
-                error:
-                  payload.error?.message ||
-                  "Не удалось получить данные клиники.",
-              },
-            };
+            return geminiToolErrorResponse(
+              { id, name },
+              payload.error?.message || "Не удалось получить данные клиники.",
+            );
           }
-          return {
-            id,
-            name,
-            response: { output: payload.data },
-          };
+          return geminiToolSuccessResponse({ id, name }, payload.data);
         } catch {
-          return {
-            id,
-            name,
-            response: { error: "Сервис данных клиники временно недоступен." },
-          };
+          return geminiToolErrorResponse(
+            { id, name },
+            "Сервис данных клиники временно недоступен.",
+          );
         }
       }),
     );

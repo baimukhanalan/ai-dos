@@ -15,6 +15,7 @@ import { requireUser } from "@/lib/dal/auth";
 import { apiError, AppError } from "@/lib/errors";
 import {
   geminiLiveModel,
+  geminiLiveTools,
   buildReceptionistInstructions,
 } from "@/lib/voice/config";
 import { geminiLiveSessionSchema } from "@/lib/validation/voice";
@@ -74,6 +75,7 @@ export async function POST(request: Request) {
       responseModalities: [Modality.AUDIO],
       temperature: 0.6,
       systemInstruction,
+      tools: geminiLiveTools,
       speechConfig: {
         voiceConfig: { prebuiltVoiceConfig: { voiceName: input.voice } },
       },

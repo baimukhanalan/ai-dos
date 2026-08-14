@@ -1,5 +1,27 @@
 import type { Tool } from "@google/genai";
 
+export function geminiToolSuccessResponse(
+  call: { id: string; name: string },
+  result: unknown,
+) {
+  return {
+    id: call.id,
+    name: call.name,
+    response: { result },
+  };
+}
+
+export function geminiToolErrorResponse(
+  call: { id: string; name: string },
+  message: string,
+) {
+  return {
+    id: call.id,
+    name: call.name,
+    response: { result: { error: message } },
+  };
+}
+
 export const geminiLiveTools: Tool[] = [
   {
     functionDeclarations: [
