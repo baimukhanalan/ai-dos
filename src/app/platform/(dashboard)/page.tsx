@@ -20,6 +20,13 @@ const auditLabels: Record<string, string> = {
   "platform.tenant.status_changed": "Статус клиники изменён",
 };
 
+const misHealthLabels: Record<string, string> = {
+  sandbox: "Sandbox",
+  official_api_pending: "Ожидает API",
+  approved_bridge_setup_required: "Мост требует настройки",
+  approved_bridge_ready: "Одобренный мост готов",
+};
+
 function HealthRow({ label, value, ready }: { label: string; value: string; ready: boolean }) {
   return <div className="flex items-center justify-between gap-4 border-b border-border/70 py-4 last:border-0"><span className="font-medium">{label}</span><span className="inline-flex items-center gap-2 text-sm text-muted-foreground"><span className={`size-2 rounded-full ${ready ? "bg-[#16834d]" : "bg-[#e99400]"}`} />{value}</span></div>;
 }
@@ -79,7 +86,7 @@ export default async function PlatformPage() {
           <HealthRow label="Database" ready={data.health.database === "connected"} value="Подключено" />
           <HealthRow label="Gemini Live" ready={data.health.voice === "ready"} value={data.health.voice === "ready" ? "Готов" : "Нужен провайдер"} />
           <HealthRow label="Telephony provider" ready={data.health.telephony === "ready"} value={data.health.telephony === "ready" ? "Готов" : "Требуется настройка"} />
-          <HealthRow label="DAMUMED official API" ready={false} value="Ожидает доступа" />
+          <HealthRow label="DAMUMED" ready={data.health.damumed === "approved_bridge_ready"} value={misHealthLabels[data.health.damumed] || data.health.damumed} />
         </section>
 
         <section className="rounded-[14px] border border-border bg-white/70 p-5" id="audit">

@@ -3,6 +3,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/dal/auth";
 import { AppError } from "@/lib/errors";
+import { misIntegrationStatus } from "@/lib/integrations/mis-status";
 import type { PlatformTenantStatusInput } from "@/lib/validation/platform";
 import type { PlatformOperationInput } from "@/lib/validation/platform-operations";
 
@@ -180,7 +181,7 @@ export async function getPlatformOverview() {
         process.env.TELEPHONY_PROVIDER && process.env.TELEPHONY_API_KEY
           ? "ready"
           : "provider_required",
-      damumed: "official_api_pending",
+      damumed: misIntegrationStatus(),
     },
   };
 }

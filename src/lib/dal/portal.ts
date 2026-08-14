@@ -2,6 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import { requireRoles } from "@/lib/dal/auth";
+import { misIntegrationStatus } from "@/lib/integrations/mis-status";
 
 export async function getPortalOverview() {
   const user = await requireRoles(["clinic_admin", "operator"]);
@@ -80,7 +81,7 @@ export async function getPortalOverview() {
     callbacks,
     integration: {
       provider: "DAMUMED",
-      mode: "official_api_pending" as const,
+      mode: misIntegrationStatus(),
     },
   };
 }

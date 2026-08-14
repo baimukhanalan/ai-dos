@@ -11,6 +11,10 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/portal/page-header";
 import { requirePageRoles } from "@/lib/dal/auth";
+import {
+  misIntegrationLabel,
+  misIntegrationStatus,
+} from "@/lib/integrations/mis-status";
 
 export const metadata: Metadata = { title: "Настройки" };
 export const dynamic = "force-dynamic";
@@ -18,6 +22,7 @@ export const dynamic = "force-dynamic";
 export default async function SettingsPage() {
   const user = await requirePageRoles(["clinic_admin"]);
   const safeAiMode = process.env.AI_RUNTIME !== "openai";
+  const misStatus = misIntegrationStatus();
   const integrations = [
     {
       icon: Database,
@@ -46,9 +51,12 @@ export default async function SettingsPage() {
     {
       icon: PlugsConnected,
       name: "DAMUMED",
-      detail: "Только официальный API",
-      status: "Ожидает API",
-      active: false,
+      detail:
+        misStatus.startsWith("approved_bridge")
+          ? "Локальный мост в авторизованном Chrome клиники"
+          : "Официальный API или письменно одобренный шлюз",
+      status: misIntegrationLabel(misStatus),
+      active: misStatus === "approved_bridge_ready",
     },
     {
       icon: Globe,

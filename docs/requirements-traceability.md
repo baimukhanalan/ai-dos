@@ -11,8 +11,8 @@
 | 3. Project setup | готово | TypeScript strict, lint, Vitest, миграции, Vercel config и env boundary |
 | 4. Core clinic management | готово | `/portal/clinic`: филиалы, отделения, врачи, сотрудники, услуги, роли |
 | 5. Appointments | готово | создание, свободные слоты, защита от дубля, перенос, отмена, история |
-| 6. DAMUMED adapter | готово к подключению | контракт, воркер переноса с перечитыванием, повторами и падением в задачу сотруднику; сам адаптер не выдумывает чужой интерфейс и ждёт доступ |
-| 7. Voice AI | готово | `/portal/voice`: Gemini Live WebSocket, автоязык, VAD, barge-in, запись; отдельный OpenAI SIP webhook |
+| 6. DAMUMED adapter | готово к контролируемой проверке | контракт, очередь с перечитыванием и безопасный локальный Browser Bridge; официальный API ожидается, а bridge нельзя включать без письменного разрешения и live DOM-приёмки |
+| 7. Voice AI | браузер готов, телефон готов к подключению | `/portal/voice`: Gemini Live WebSocket, автоязык, VAD, barge-in и запись; OpenAI SIP принимает входящий webhook, но реальный номер, финализация статуса и перевод человеку требуют провайдера и отдельного sideband/status worker |
 | 8. Notifications | готово к подключению | воркер очереди, рендер шаблонов на трёх языках, повторы с backoff, журнал попыток и статус `blocked` без учётных данных провайдера |
 | 9. Waitlist и callback | готово | воркер подбирает освободившийся слот, держит предложение до срока и возвращает запись в очередь; автообзвон требует номера |
 | 10. Scenario Builder | готово | визуальный редактор графа, типизированные блоки и tools, safety-проверки, симуляция success/fallback, optimistic locking, неизменяемые опубликованные версии, publish и rollback |
@@ -24,7 +24,7 @@
 | № | Требование | Статус / модуль |
 |---:|---|---|
 | 1–4 | продукт, цель, роли, мультитенантность | готово: лендинг, auth, tenants, tenant-scoped DAL/RLS |
-| 5–9 | омниканал, voice AI, языки, голос, старт звонка | voice lab + Realtime SIP; внешние каналы требуют accounts |
+| 5–9 | омниканал, voice AI, языки, голос, старт звонка | voice lab готов; Realtime SIP boundary готов к подключению, но полный телефонный lifecycle и рабочие алерты остаются P0 |
 | 10–11 | идентификация и новый пациент | patients API/UI; ИИН минимизирован и не отправляется модели; Patient Identity (`/api/patients/verify`) — телефон + фактор, по одному имени не находит |
 | 12–13 | DAMUMED и другие МИС | официальный adapter boundary, sandbox, integration health |
 | 14–17 | врач, жалоба, расписание, запись | clinic directory, safe routing prompt, slots, idempotent booking |
@@ -35,7 +35,7 @@
 | 27–29 | knowledge, сценарии, кампании | статьи + структурированный Clinic Knowledge Engine (`knowledge_rules`: category/scope/keywords) с адресным матчингом под intent; рабочие visual builders для сценариев и consent-aware кампаний; внешние каналы включаются только официальными credentials |
 | 30–31 | история и резюме звонка | Patient 360 объединяет разговоры, звонки, записи, уведомления, callback, лист ожидания, кампании, задачи и согласия; поиск/фильтры работают в UI, телефон и ИИН маскируются; завершённый Gemini Live тест сохраняет маскированное резюме и следующий операционный шаг |
 | 32–35 | панели регистратора, врача, admin, superadmin | единый role-aware portal; clinic admin и operations готовы, глобальный SaaS-owner UI ограничен платформенной ролью |
-| 36–38 | аналитика, уведомления, телефония | tenant-scoped reports с фильтрами по периоду, филиалу, врачу, специальности, языку, каналу, результату и сценарию; KPI звонков/записей, дневная динамика, спрос и операционная эффективность; безопасный CSV и настоящий XLSX export; notification pipeline; SIP number registry/webhook |
+| 36–38 | аналитика, уведомления, телефония | отчёты и notification pipeline готовы; SIP number registry/incoming webhook есть, но финальные call statuses, рабочие телефонные алерты и входящий WhatsApp требуют провайдерных webhook/worker |
 | 39–44 | AI safety, consent, security, RBAC, audit | server-only keys, masked identifiers, отдельные цели consent (обработка, запись звонка, сообщения, WhatsApp, исходящие звонки, маркетинг), источник/дата/версия/отзыв, immutable history, отдельные permissions и audit |
 | 45–50 | архитектура, стек, БД, API, events, jobs | Next/Vercel/Postgres, route handlers, outbox, cron |
 | 51–52 | observability и resilience | health, integration requests/errors, retries/idempotency/safe mode |

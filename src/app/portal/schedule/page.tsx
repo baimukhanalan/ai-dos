@@ -9,6 +9,10 @@ import { AppointmentActions } from "@/components/portal/appointment-actions";
 import { PageHeader } from "@/components/portal/page-header";
 import { getSchedule } from "@/lib/dal/portal";
 import { requirePageRoles } from "@/lib/dal/auth";
+import {
+  misIntegrationLabel,
+  misIntegrationStatus,
+} from "@/lib/integrations/mis-status";
 
 export const metadata: Metadata = { title: "Расписание" };
 export const dynamic = "force-dynamic";
@@ -16,6 +20,7 @@ export const dynamic = "force-dynamic";
 export default async function SchedulePage() {
   await requirePageRoles(["clinic_admin", "operator"]);
   const data = await getSchedule();
+  const misStatus = misIntegrationStatus();
   const dayFormatter = new Intl.DateTimeFormat("ru-KZ", {
     timeZone: data.user.timezone,
     day: "numeric",
@@ -95,8 +100,7 @@ export default async function SchedulePage() {
             </div>
           ))}
           <div className="flex gap-3 rounded-[13px] border border-[#c8dfe2] bg-[#eef8fa] p-4 text-sm leading-6 text-[#2f5961]">
-            <CalendarBlank className="mt-0.5 size-5 shrink-0" /> DAMUMED не
-            используется до получения официального API.
+            <CalendarBlank className="mt-0.5 size-5 shrink-0" /> DAMUMED: {misIntegrationLabel(misStatus)}.
           </div>
         </aside>
       </div>

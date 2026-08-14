@@ -1,4 +1,5 @@
 import { db, isDatabaseConfigured } from "@/lib/db";
+import { misIntegrationStatus } from "@/lib/integrations/mis-status";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ export async function GET() {
         process.env.OPENAI_PROJECT_ID
           ? "sip_ready"
           : "provider_setup_required",
-      damumed: "official_api_pending",
+      damumed: misIntegrationStatus(),
       timestamp: new Date().toISOString(),
     },
     {
