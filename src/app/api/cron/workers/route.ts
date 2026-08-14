@@ -10,6 +10,7 @@ import { processOutbox } from "@/lib/notifications/outbox";
 import { enqueueAppointmentReminders } from "@/lib/notifications/reminders";
 import { runNoShowSweep } from "@/lib/scheduling/no-show";
 import { runWaitlistMatching } from "@/lib/scheduling/waitlist";
+import { syncCampaignResults } from "@/lib/dal/campaigns";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -34,8 +35,10 @@ export async function GET(request: Request) {
     const abandonedBookings = await closeAbandonedBookingSessions();
     const waitlist = await runWaitlistMatching();
     const misSync = await runMisSync();
+    const campaignsBeforeDelivery = await syncCampaignResults();
     const outbox = await processOutbox();
     const delivery = await dispatchDueNotifications();
+    const campaignsAfterDelivery = await syncCampaignResults();
 
     return Response.json({
       ok: true,
@@ -46,6 +49,10 @@ export async function GET(request: Request) {
       misSync,
       outbox,
       delivery,
+      campaigns: {
+        beforeDelivery: campaignsBeforeDelivery,
+        afterDelivery: campaignsAfterDelivery,
+      },
       channels: deliveryReadiness().channels.map((channel) => ({
         channel: channel.channel,
         configured: channel.configured,

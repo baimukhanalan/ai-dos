@@ -108,7 +108,7 @@ export default async function AutomationsPage() {
         </ModuleSection>
         <ModuleSection count={data.campaigns.length} description="Обзвоны и сообщения только пациентам с подходящим согласием." title="Кампании">
           {data.campaigns.length ? data.campaigns.map((item) => (
-            <Row key={String(item.id)} title={String(item.name)} detail={`${String(item.channel)} · ${String(item.locale)} · аудитория ${String(item.audience_count)} · доставлено ${String(item.delivered_count)}`} status={String(item.status)} />
+            <Row href={`/portal/automations/campaigns/${String(item.id)}`} key={String(item.id)} title={String(item.name)} detail={`${String(item.channel)} · ${String(item.locale)} · аудитория ${String(item.audience_count)} · доставлено ${String(item.delivered_count)} · открыть конструктор`} status={String(item.status)} />
           )) : <EmptyModule>Кампаний ещё нет. При запуске система исключит opt-out контакты.</EmptyModule>}
         </ModuleSection>
         <ModuleSection count={data.templates.length} description="RU, KK и EN версии подтверждений, напоминаний и отмен." title="Шаблоны уведомлений">

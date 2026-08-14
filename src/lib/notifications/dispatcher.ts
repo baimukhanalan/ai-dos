@@ -151,6 +151,8 @@ export function buildVariables(
     expiresAt: expiresAtSource ? formatMoment(expiresAtSource, timezone, locale) : null,
     supportPhone: branding.supportPhone,
     supportEmail: branding.supportEmail,
+    optOutUrl:
+      typeof payload.optOutUrl === "string" ? payload.optOutUrl : null,
   };
 }
 
@@ -306,14 +308,27 @@ export async function dispatchDueNotifications(limit = 25): Promise<DispatchSumm
         brandingCache.set(notification.tenant_id, branding);
       }
 
+      const campaignTemplate =
+        notification.template_code === "campaign_message" &&
+        typeof notification.payload?.body === "string"
+          ? {
+              body: notification.payload.body,
+              subject:
+                typeof notification.payload.subject === "string"
+                  ? notification.payload.subject
+                  : undefined,
+            }
+          : null;
       const template =
+        campaignTemplate ||
         (await loadTenantTemplate(
           sql,
           notification.tenant_id,
           notification.template_code,
           locale,
           channel,
-        )) || getDefaultTemplate(notification.template_code, locale);
+        )) ||
+        getDefaultTemplate(notification.template_code, locale);
 
       if (!template) {
         await finalizeProblem(
