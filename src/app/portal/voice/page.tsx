@@ -138,6 +138,16 @@ export default async function VoicePage() {
                   <p className="mt-1 text-xs text-muted-foreground">
                     {dateFormatter.format(new Date(String(session.started_at)))} · {String(session.transcript_items)} реплик
                   </p>
+                  {session.summary ? (
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-foreground/80">
+                      {String(session.summary)}
+                    </p>
+                  ) : null}
+                  {session.next_action ? (
+                    <p className="mt-1 text-xs font-medium text-primary">
+                      Следующий шаг: {String(session.next_action)}
+                    </p>
+                  ) : null}
                 </div>
                 <span className="text-sm font-semibold text-primary">
                   {session.latency_ms ? `${String(session.latency_ms)} мс` : String(session.status)}

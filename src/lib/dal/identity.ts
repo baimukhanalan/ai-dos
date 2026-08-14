@@ -31,17 +31,39 @@ export async function verifyPatientIdentity(
     ? input.fullName.trim().split(/\s+/)[0].toLowerCase().replace(/([%_\\])/g, "\\$1")
     : null;
 
-  const rows = (await sql`
-    SELECT id FROM patients
-    WHERE tenant_id = ${tenantId}
-      AND regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g') = ${phone}
-      AND (
-        ${surname}::text IS NULL
-        OR lower(full_name) LIKE '%' || ${surname} || '%' ESCAPE '\'
-        OR birth_date::text = ${input.birthDate ?? null}
-      )
-    LIMIT 1
-  `) as Array<{ id: string }>;
+  const birthDate = input.birthDate ?? null;
+  let rows: Array<{ id: string }>;
+
+  if (surname && birthDate) {
+    rows = (await sql`
+      SELECT id FROM patients
+      WHERE tenant_id = ${tenantId}
+        AND regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g') = ${phone}
+        AND (
+          lower(full_name) LIKE '%' || ${surname} || '%' ESCAPE '\'
+          OR birth_date::text = ${birthDate}
+        )
+      LIMIT 1
+    `) as Array<{ id: string }>;
+  } else if (surname) {
+    rows = (await sql`
+      SELECT id FROM patients
+      WHERE tenant_id = ${tenantId}
+        AND regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g') = ${phone}
+        AND lower(full_name) LIKE '%' || ${surname} || '%' ESCAPE '\'
+      LIMIT 1
+    `) as Array<{ id: string }>;
+  } else {
+    // Ветка даты рождения намеренно отдельная: NULL в логическом OR не должен
+    // превращать проверку второго фактора в совпадение только по телефону.
+    rows = (await sql`
+      SELECT id FROM patients
+      WHERE tenant_id = ${tenantId}
+        AND regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g') = ${phone}
+        AND birth_date::text = ${birthDate}
+      LIMIT 1
+    `) as Array<{ id: string }>;
+  }
 
   return rows[0]
     ? { status: "verified", patientId: rows[0].id }

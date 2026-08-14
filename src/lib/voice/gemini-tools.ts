@@ -32,7 +32,7 @@ export const geminiLiveTools: Tool[] = [
       {
         name: "list_doctors",
         description:
-          "Get authoritative published knowledge about doctor names and schedules together with structured booking records. Always prefer publishedKnowledge when names or schedules conflict with structuredDoctors. Use structuredDoctors only for an exact booking ID match.",
+          "Get authoritative published knowledge about doctor names and schedules together with structured booking records. Always prefer publishedKnowledge when names or schedules conflict with structuredDoctors. When the patient asks for a schedule, state the exact days and time ranges from publishedKnowledge instead of summarizing them as morning or afternoon. Use structuredDoctors only for an exact booking ID match.",
         parametersJsonSchema: {
           type: "object",
           additionalProperties: false,
@@ -63,6 +63,24 @@ export const geminiLiveTools: Tool[] = [
           type: "object",
           additionalProperties: false,
           properties: {},
+        },
+      },
+      {
+        name: "verify_patient_identity",
+        description:
+          "Verify a patient before booking or accessing appointment data. Ask for phone plus surname or date of birth, then pass exactly those values. The result exposes only a status and, on success, a patientId for booking_turn.",
+        parametersJsonSchema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            phone: { type: "string", minLength: 7, maxLength: 24 },
+            surname: { type: "string", minLength: 2, maxLength: 120 },
+            birthDate: {
+              type: "string",
+              pattern: "^\\d{4}-\\d{2}-\\d{2}$",
+            },
+          },
+          required: ["phone"],
         },
       },
       {

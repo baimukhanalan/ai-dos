@@ -309,7 +309,7 @@ export async function runBookingTurnForTenant(
             reason: "Разговорная запись AI Dos",
             idempotencyKey: `booking:${session.id}:${startsAt}`,
           },
-          input.channel === "portal" ? "portal" : "web",
+          input.channel ?? "web",
         )) as { id?: string };
         appointmentId = appointment.id ? String(appointment.id) : null;
         turn = bookedTurn(turn.state, startsAt, timeZone);

@@ -31,9 +31,15 @@ describe("voice safety and realtime configuration", () => {
     expect(prompt).toContain("улица Комарова, 6А");
     expect(prompt).toContain("search_clinic_knowledge");
     expect(prompt).toContain("Опубликованная база знаний — главный источник имён врачей");
+    expect(prompt).toContain("назови точные дни недели и интервалы времени");
     expect(prompt).toContain("Рабочий график врача не означает наличие свободного слота");
+    expect(prompt).toContain("verify_patient_identity");
     expect(names).toContain("search_clinic_knowledge");
     expect(names).toContain("find_available_slots");
+    expect(names).toContain("verify_patient_identity");
+    expect(names.indexOf("verify_patient_identity")).toBeLessThan(
+      names.indexOf("booking_turn"),
+    );
     expect(names).toContain("create_callback_request");
   });
 

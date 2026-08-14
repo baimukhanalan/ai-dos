@@ -4,12 +4,14 @@ import { requireUser } from "@/lib/dal/auth";
 import { apiError } from "@/lib/errors";
 import { recordUsage } from "@/lib/billing/usage";
 import { voiceSessionResultSchema } from "@/lib/validation/voice";
+import { summarizeVoiceTranscript } from "@/lib/voice/summary";
 
 export async function PATCH(request: Request) {
   try {
     const user = await requireUser();
     const input = voiceSessionResultSchema.parse(await request.json());
     const sql = db();
+    const result = summarizeVoiceTranscript(input.transcript);
     const rows = (await sql`
       WITH previous AS (
         SELECT id, ended_at
@@ -24,6 +26,8 @@ export async function PATCH(request: Request) {
             transcript = ${JSON.stringify(input.transcript)}::jsonb,
             latency_ms = ${input.latencyMs ?? null},
             error_code = ${input.errorCode || null},
+            summary = ${result.summary},
+            next_action = ${result.nextAction},
             ended_at = CASE
               WHEN ${input.status} IN ('completed', 'failed')
               THEN COALESCE(s.ended_at, now())

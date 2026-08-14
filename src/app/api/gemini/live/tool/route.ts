@@ -15,6 +15,7 @@ import {
 import { db } from "@/lib/db";
 import { apiError, AppError } from "@/lib/errors";
 import { callbackSchema } from "@/lib/validation/operations";
+import { verifyPatientIdentity } from "@/lib/dal/identity";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,7 @@ const toolNames = [
   "list_doctors",
   "find_available_slots",
   "list_clinic_branches",
+  "verify_patient_identity",
   "booking_turn",
   "create_callback_request",
 ] as const;
@@ -57,6 +59,16 @@ const bookingToolSchema = z.object({
   message: z.string().trim().min(1).max(1000),
   patientId: z.string().uuid().optional(),
 });
+
+const identityToolSchema = z
+  .object({
+    phone: z.string().trim().min(7).max(24),
+    surname: z.string().trim().min(2).max(120).optional(),
+    birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  })
+  .refine((value) => Boolean(value.surname || value.birthDate), {
+    message: "Укажите фамилию или дату рождения.",
+  });
 
 const callbackToolSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -157,6 +169,15 @@ export async function POST(request: Request) {
       }
       case "list_clinic_branches": {
         data = { branches: await listClinicBranches(user.tenantId) };
+        break;
+      }
+      case "verify_patient_identity": {
+        const args = identityToolSchema.parse(input.args);
+        data = await verifyPatientIdentity(sql, user.tenantId, {
+          phone: args.phone,
+          fullName: args.surname,
+          birthDate: args.birthDate,
+        });
         break;
       }
       case "booking_turn": {

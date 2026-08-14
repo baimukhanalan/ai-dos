@@ -236,7 +236,7 @@ export async function getVoiceCenter() {
     `,
     sql`
       SELECT id, model, voice, requested_language, detected_language, status,
-        latency_ms, started_at, ended_at,
+        latency_ms, started_at, ended_at, summary, next_action,
         jsonb_array_length(transcript) AS transcript_items
       FROM voice_sessions
       WHERE tenant_id = ${user.tenantId}

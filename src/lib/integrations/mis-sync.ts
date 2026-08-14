@@ -245,8 +245,8 @@ function emptySummary(mode: string): MisSyncSummary {
 
 /**
  * Проход синхронизации внутри приложения. В режиме `remote` очередь забирает
- * внешний воркер через `/api/mis/queue`, поэтому здесь работать нечему:
- * headless-браузеру нужен постоянный хост, а не serverless-функция.
+ * официальный API-шлюз клиники через `/api/mis/queue`, поэтому здесь
+ * работать нечему: интеграция выполняется в отдельном одобренном контуре.
  */
 export async function runMisSync(limit = 20): Promise<MisSyncSummary> {
   const mode = process.env.MIS_ADAPTER || "sandbox";

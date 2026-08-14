@@ -134,7 +134,7 @@ export async function createAppointmentForTenant(
   tenantId: string,
   actorUserId: string | null,
   input: AppointmentInput,
-  source: "portal" | "web" | "mcp" = "portal",
+  source: "portal" | "web" | "phone" | "whatsapp" | "telegram" | "mcp" = "portal",
   /**
    * `allowOutsideSchedule` снимает только проверку рабочего окна врача и
    * применяется единственным путём — явным решением администратора принять
