@@ -7,7 +7,8 @@ import { readSession } from "@/lib/session";
 export const metadata: Metadata = { title: "Вход" };
 
 export default async function LoginPage() {
-  if (await readSession()) redirect("/portal");
+  const session = await readSession();
+  if (session) redirect(session.scope === "platform" ? "/platform" : "/portal");
   return (
     <AuthShell>
       <AuthForm mode="login" />

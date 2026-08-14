@@ -22,6 +22,14 @@ export type AuthenticatedUser = {
   role: string;
 };
 
+export type PlatformAdmin = {
+  id: string;
+  tenantId: string;
+  fullName: string;
+  email: string;
+  role: "super_admin";
+};
+
 function slugify(value: string) {
   const slug = value
     .normalize("NFKD")
@@ -310,9 +318,113 @@ export async function authenticate(input: LoginInput) {
   } satisfies AuthenticatedUser;
 }
 
+export async function authenticatePlatform(
+  input: LoginInput,
+  context: { ipHash?: string | null; requestId?: string | null } = {},
+) {
+  const sql = db();
+  const emailHash = createHash("sha256")
+    .update(input.email.toLowerCase())
+    .digest("hex");
+  const identifier = `platform-login:${emailHash}`;
+  const rateLimit = (await sql`
+    SELECT blocked_until FROM auth_rate_limits
+    WHERE identifier = ${identifier} AND blocked_until > now()
+    LIMIT 1
+  `) as Array<{ blocked_until: Date | string }>;
+  if (rateLimit[0]) {
+    throw new AppError(
+      "too_many_login_attempts",
+      429,
+      "Слишком много попыток. Повторите через 15 минут.",
+    );
+  }
+
+  const rows = (await sql`
+    SELECT u.id, u.tenant_id, u.email, u.password_hash, u.full_name
+    FROM platform_admins pa
+    JOIN users u ON u.id = pa.user_id AND u.status = 'active'
+    JOIN tenants t ON t.id = u.tenant_id AND t.status = 'active'
+    WHERE lower(u.email) = lower(${input.email}) AND pa.active = true
+    LIMIT 1
+  `) as Array<{
+    id: string;
+    tenant_id: string;
+    email: string;
+    password_hash: string;
+    full_name: string;
+  }>;
+  const admin = rows[0];
+  const passwordMatches = await compare(
+    input.password,
+    admin?.password_hash || DUMMY_PASSWORD_HASH,
+  );
+
+  if (!admin || !passwordMatches) {
+    await sql.transaction([
+      sql`
+        INSERT INTO auth_rate_limits (
+          identifier, attempts, window_started_at, blocked_until, updated_at
+        ) VALUES (${identifier}, 1, now(), null, now())
+        ON CONFLICT (identifier) DO UPDATE SET
+          attempts = CASE
+            WHEN auth_rate_limits.window_started_at < now() - interval '15 minutes' THEN 1
+            ELSE auth_rate_limits.attempts + 1
+          END,
+          window_started_at = CASE
+            WHEN auth_rate_limits.window_started_at < now() - interval '15 minutes' THEN now()
+            ELSE auth_rate_limits.window_started_at
+          END,
+          blocked_until = CASE
+            WHEN auth_rate_limits.attempts + 1 >= 6 THEN now() + interval '15 minutes'
+            ELSE null
+          END,
+          updated_at = now()
+      `,
+      sql`
+        INSERT INTO platform_audit_events (
+          action, resource_type, resource_id, result, ip_hash, request_id
+        ) VALUES (
+          'platform.auth.login', 'platform_admin', ${emailHash}, 'failed',
+          ${context.ipHash || null}, ${context.requestId || null}
+        )
+      `,
+    ]);
+    throw new AppError(
+      "invalid_credentials",
+      401,
+      "Неверный email или пароль.",
+    );
+  }
+
+  await sql.transaction([
+    sql`DELETE FROM auth_rate_limits WHERE identifier = ${identifier}`,
+    sql`UPDATE users SET last_login_at = now() WHERE id = ${admin.id}`,
+    sql`
+      INSERT INTO platform_audit_events (
+        actor_user_id, action, resource_type, resource_id, ip_hash, request_id
+      ) VALUES (
+        ${admin.id}, 'platform.auth.login', 'platform_admin', ${admin.id},
+        ${context.ipHash || null}, ${context.requestId || null}
+      )
+    `,
+  ]);
+
+  return {
+    id: admin.id,
+    tenantId: admin.tenant_id,
+    fullName: admin.full_name,
+    email: admin.email,
+    role: "super_admin",
+  } satisfies PlatformAdmin;
+}
+
 export async function requireUser() {
   const session = await readSession();
   if (!session) throw new AppError("unauthorized", 401, "Войдите в портал.");
+  if (session.scope === "platform") {
+    throw new AppError("unauthorized", 401, "Используйте портал платформы.");
+  }
 
   const sql = db();
   const rows = (await sql`
@@ -349,6 +461,46 @@ export async function requireUser() {
     email: user.email,
     role: user.role,
   } satisfies AuthenticatedUser;
+}
+
+export async function requirePlatformAdmin() {
+  const session = await readSession();
+  if (!session || session.scope !== "platform" || session.role !== "super_admin") {
+    throw new AppError("unauthorized", 401, "Войдите в управление платформой.");
+  }
+  const sql = db();
+  const rows = (await sql`
+    SELECT u.id, u.tenant_id, u.full_name, u.email
+    FROM platform_admins pa
+    JOIN users u ON u.id = pa.user_id AND u.status = 'active'
+    JOIN tenants t ON t.id = u.tenant_id AND t.status = 'active'
+    WHERE pa.user_id = ${session.userId} AND pa.active = true
+    LIMIT 1
+  `) as Array<{
+    id: string;
+    tenant_id: string;
+    full_name: string;
+    email: string;
+  }>;
+  const admin = rows[0];
+  if (!admin) {
+    throw new AppError("unauthorized", 401, "Сессия платформы недействительна.");
+  }
+  return {
+    id: admin.id,
+    tenantId: admin.tenant_id,
+    fullName: admin.full_name,
+    email: admin.email,
+    role: "super_admin",
+  } satisfies PlatformAdmin;
+}
+
+export async function requirePlatformPage() {
+  try {
+    return await requirePlatformAdmin();
+  } catch {
+    redirect("/platform/login");
+  }
 }
 
 export async function requireRoles(allowed: string[]) {

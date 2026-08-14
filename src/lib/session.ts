@@ -10,6 +10,7 @@ export type SessionPayload = {
   userId: string;
   tenantId: string;
   role: string;
+  scope?: "tenant" | "platform";
 };
 
 function sessionKey() {
@@ -48,6 +49,7 @@ export async function decryptSession(token: string | undefined) {
       userId: payload.userId,
       tenantId: payload.tenantId,
       role: payload.role,
+      scope: payload.scope === "platform" ? "platform" : "tenant",
     } satisfies SessionPayload;
   } catch {
     return null;
