@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { UserCircle } from "@phosphor-icons/react/dist/ssr";
@@ -32,8 +33,9 @@ export default async function PatientsPage() {
         </div>
         {patients.length ? (
           patients.map((patient) => (
-            <article
-              className="grid gap-4 border-b border-border/70 px-5 py-4 last:border-0 md:grid-cols-[1.5fr_1fr_.8fr_.7fr] md:items-center"
+            <Link
+              className="grid gap-4 border-b border-border/70 px-5 py-4 last:border-0 hover:bg-[#f4f7f2] md:grid-cols-[1.5fr_1fr_.8fr_.7fr] md:items-center"
+              href={`/portal/patients/${String(patient.id)}`}
               key={String(patient.id)}
             >
               <div className="flex items-center gap-3">
@@ -72,7 +74,7 @@ export default async function PatientsPage() {
               <p className="text-sm font-semibold text-primary">
                 {String(patient.appointment_count)}
               </p>
-            </article>
+            </Link>
           ))
         ) : (
           <p className="p-10 text-center text-sm text-muted-foreground">

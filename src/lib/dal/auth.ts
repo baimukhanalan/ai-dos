@@ -134,7 +134,7 @@ export async function registerTenant(input: RegisterInput) {
       sql`INSERT INTO branches (id, tenant_id, clinic_id, name, address) VALUES (${branchId}, ${tenantId}, ${clinicId}, 'Главный филиал', 'Укажите адрес в настройках')`,
       sql`INSERT INTO roles (id, tenant_id, code, name, system) VALUES (${roleId}, ${tenantId}, 'clinic_admin', 'Администратор клиники', true), (${operatorRoleId}, ${tenantId}, 'operator', 'Регистратор', true), (${doctorRoleId}, ${tenantId}, 'doctor', 'Врач', true)`,
       sql`INSERT INTO role_permissions (role_id, permission_id) SELECT ${roleId}, id FROM permissions`,
-      sql`INSERT INTO role_permissions (role_id, permission_id) SELECT ${operatorRoleId}, id FROM permissions WHERE code = ANY(ARRAY['patients.read','patients.write','schedule.read','appointments.write','conversations.read','conversations.write']::text[])`,
+      sql`INSERT INTO role_permissions (role_id, permission_id) SELECT ${operatorRoleId}, id FROM permissions WHERE code = ANY(ARRAY['patients.read','patients.write','patients.timeline.read','patients.consents.write','schedule.read','appointments.write','conversations.read','conversations.write']::text[])`,
       sql`INSERT INTO role_permissions (role_id, permission_id) SELECT ${doctorRoleId}, id FROM permissions WHERE code = ANY(ARRAY['schedule.read','appointments.write']::text[])`,
       sql`INSERT INTO users (id, tenant_id, email, password_hash, full_name) VALUES (${userId}, ${tenantId}, ${input.email}, ${passwordHash}, ${input.fullName})`,
       sql`INSERT INTO user_roles (tenant_id, user_id, role_id) VALUES (${tenantId}, ${userId}, ${roleId})`,
