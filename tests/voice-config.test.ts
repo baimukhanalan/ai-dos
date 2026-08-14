@@ -31,6 +31,7 @@ describe("voice safety and realtime configuration", () => {
 
     expect(prompt).toContain("улица Комарова, 6А");
     expect(prompt).toContain("search_clinic_knowledge");
+    expect(prompt).toContain("не отвечай, что врача нет");
     expect(prompt).toContain("следуй полю exactDoctorAnswer");
     expect(prompt).toContain("назови точные дни недели и интервалы времени");
     expect(prompt).toContain("Рабочий график врача не означает наличие свободного слота");

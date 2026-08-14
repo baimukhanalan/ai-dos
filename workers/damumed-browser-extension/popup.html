@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ru">
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /><link rel="stylesheet" href="popup.css" /><title>AI Dos Bridge</title></head>
+  <body>
+    <header><span class="dot"></span><div><strong>AI Dos</strong><small>DAMUMED Bridge</small></div></header>
+    <label>AI Dos URL<input id="apiBase" type="url" /></label>
+    <label>Секрет воркера<input id="workerSecret" autocomplete="off" type="password" /></label>
+    <label>ID клиники AI Dos<input id="tenantId" autocomplete="off" placeholder="UUID" /></label>
+    <label class="check"><input id="dryRun" type="checkbox" /><span><b>Безопасная проверка</b><small>Не забирает очередь и ничего не сохраняет</small></span></label>
+    <label class="check"><input id="enabled" type="checkbox" /><span><b>Автоматический режим</b><small>Запускайте только после контрольной записи</small></span></label>
+    <div class="actions"><button id="inspect">Проверить страницу</button><button id="scan">Синхронизировать график</button><button class="primary wide" id="run">Обработать 1 запись</button></div>
+    <p id="status" role="status">Расширение ещё не проверяло страницу.</p>
+    <script src="popup.js"></script>
+  </body>
+</html>

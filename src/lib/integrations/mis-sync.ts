@@ -98,7 +98,7 @@ export type ClaimedAppointment = {
 export type SyncPayload = MisAppointmentInput & { tenantId: string; attempts: number };
 
 /** Возвращает записи в очереди и держит их под арендой на время обработки. */
-export async function claimSyncBatch(sql: Sql, limit: number) {
+export async function claimSyncBatch(sql: Sql, limit: number, tenantId?: string) {
   await sql`
     UPDATE appointments SET external_sync_state = 'pending'
     WHERE external_sync_state = 'syncing' AND external_sync_next_at <= now()
@@ -112,6 +112,7 @@ export async function claimSyncBatch(sql: Sql, limit: number) {
     WHERE id IN (
       SELECT id FROM appointments
       WHERE external_sync_state = 'pending'
+        AND (${tenantId || null}::uuid IS NULL OR tenant_id = ${tenantId || null}::uuid)
         AND external_sync_next_at <= now()
         AND status IN ('held', 'confirmed')
         AND starts_at > now()

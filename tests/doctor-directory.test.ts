@@ -3,6 +3,7 @@ import {
   buildDoctorDirectoryAnswer,
   formatDoctorDirectoryFact,
 } from "@/lib/ai/doctor-directory";
+import { formatClinicAiContext } from "@/lib/ai/clinic-context";
 
 describe("doctor directory grounding", () => {
   const doctor = {
@@ -31,5 +32,39 @@ describe("doctor directory grounding", () => {
 
   it("does not invent a fallback doctor when the active directory is empty", () => {
     expect(buildDoctorDirectoryAnswer([])).toContain("Не называй вымышленные имена");
+  });
+
+  it("keeps authoritative doctors before long knowledge articles", () => {
+    const context = formatClinicAiContext({
+      doctors: [
+        {
+          id: doctor.id,
+          name: doctor.display_name,
+          specialty: doctor.specialty,
+          branch: null,
+          languages: ["ru"],
+          weeklySchedule: doctor.weekly_schedule,
+        },
+      ],
+      services: [],
+      branches: [],
+      scenarios: [],
+      rules: [],
+      knowledge: [
+        {
+          id: "long-article",
+          title: "Большая статья",
+          locale: "ru",
+          content: "x".repeat(60_000),
+        },
+      ],
+    });
+
+    expect(context.length).toBeLessThanOrEqual(48_000);
+    expect(context).toContain("Дуйсенбаева Жанна Кыргызбековна");
+    expect(context).toContain("Пн 08:00–13:00");
+    expect(context.indexOf("activeDoctors")).toBeLessThan(
+      context.indexOf("approvedKnowledge"),
+    );
   });
 });

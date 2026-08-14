@@ -23,6 +23,8 @@ export async function GET(request: Request) {
         "Внешний воркер МИС не настроен: задайте MIS_WORKER_SECRET.",
       );
     }
+    const workerTenantId = process.env.MIS_WORKER_TENANT_ID;
+    if (!workerTenantId) throw new AppError("mis_worker_tenant_not_configured", 503, "Внешний воркер не привязан к клинике.");
     if (!authorizeMisWorker(request)) {
       return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
@@ -38,7 +40,7 @@ export async function GET(request: Request) {
       Object.fromEntries(new URL(request.url).searchParams),
     );
     const sql = db();
-    const claimed = await claimSyncBatch(sql, limit);
+    const claimed = await claimSyncBatch(sql, limit, workerTenantId);
     const payloads = await Promise.all(
       claimed.map((appointment) => loadSyncPayload(sql, appointment)),
     );

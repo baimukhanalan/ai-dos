@@ -171,7 +171,8 @@
 }
 
 @layer utilities {
-  .report-input {
+  .report-input,
+  .platform-input {
     margin-top: 0.25rem;
     width: 100%;
     border-radius: 0.5625rem;

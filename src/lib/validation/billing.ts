@@ -4,7 +4,7 @@ import { notificationLocales } from "@/lib/notifications/templates";
 
 const optionalText = (schema: z.ZodType<string>) =>
   z
-    .union([schema, z.literal("")])
+    .union([schema, z.literal(""), z.null()])
     .optional()
     .transform((value) => (value ? value : null));
 

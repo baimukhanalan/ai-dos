@@ -454,6 +454,23 @@ export async function listPublicDoctors(tenantId: string, specialty?: string) {
           AND e.doctor_id = d.id
           AND e.exception_date BETWEEN CURRENT_DATE AND CURRENT_DATE + 30
       ), '[]'::jsonb) AS upcoming_exceptions
+      , COALESCE((
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'startsAt', x.starts_at,
+            'endsAt', x.ends_at,
+            'observedAt', x.observed_at
+          ) ORDER BY x.starts_at
+        )
+        FROM external_schedule_slots x
+        JOIN external_schedule_observations o ON o.id = x.observation_id
+        WHERE x.tenant_id = d.tenant_id
+          AND x.doctor_id = d.id
+          AND x.status = 'available'
+          AND x.starts_at > now()
+          AND o.observed_at > now() - interval '30 minutes'
+        LIMIT 12
+      ), '[]'::jsonb) AS external_available_slots
     FROM doctors d
     LEFT JOIN specialties s ON s.id = d.specialty_id AND s.tenant_id = d.tenant_id
     LEFT JOIN branches b ON b.id = d.branch_id AND b.tenant_id = d.tenant_id
@@ -502,6 +519,49 @@ export async function findAvailableSlots(
 ) {
   const sql = db();
   const boundedDays = Math.min(Math.max(days, 1), 14);
+  const external = (await sql`
+    WITH fresh AS (
+      SELECT id
+      FROM external_schedule_observations
+      WHERE tenant_id = ${tenantId}
+        AND doctor_id = ${doctorId}
+        AND provider = 'damumed'
+        AND observed_at > now() - interval '30 minutes'
+        AND schedule_date BETWEEN CURRENT_DATE AND CURRENT_DATE + ${boundedDays - 1}::int
+    )
+    SELECT x.starts_at, extract(epoch FROM (x.ends_at - x.starts_at))::int / 60 AS slot_minutes,
+      EXISTS(SELECT 1 FROM fresh) AS has_fresh_observation
+    FROM external_schedule_slots x
+    JOIN fresh o ON o.id = x.observation_id
+    WHERE x.status = 'available'
+      AND x.starts_at > now() + interval '15 minutes'
+      AND NOT EXISTS (
+        SELECT 1 FROM appointments a
+        WHERE a.tenant_id = ${tenantId}
+          AND a.doctor_id = ${doctorId}
+          AND a.status IN ('held', 'confirmed')
+          AND a.starts_at < x.ends_at
+          AND a.ends_at > x.starts_at
+      )
+    ORDER BY x.starts_at
+    LIMIT 24
+  `) as Array<{ starts_at: Date | string; slot_minutes: number; has_fresh_observation: boolean }>;
+  const observation = (await sql`
+    SELECT EXISTS(
+      SELECT 1 FROM external_schedule_observations
+      WHERE tenant_id = ${tenantId}
+        AND doctor_id = ${doctorId}
+        AND provider = 'damumed'
+        AND observed_at > now() - interval '30 minutes'
+        AND schedule_date BETWEEN CURRENT_DATE AND CURRENT_DATE + ${boundedDays - 1}::int
+    ) AS fresh
+  `) as Array<{ fresh: boolean }>;
+  if (observation[0]?.fresh) {
+    return external.map((row) => ({
+      startsAt: new Date(row.starts_at).toISOString(),
+      durationMinutes: row.slot_minutes,
+    }));
+  }
   const rows = (await sql`
     WITH context AS (
       SELECT id AS tenant_id, timezone

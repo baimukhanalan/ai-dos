@@ -19,6 +19,11 @@ export type DoctorDirectoryEntry = {
     available: boolean;
     reason: string | null;
   }>;
+  external_available_slots?: Array<{
+    startsAt: string;
+    endsAt: string;
+    observedAt: string;
+  }>;
 };
 
 const weekdays = ["", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
@@ -37,7 +42,11 @@ export function formatDoctorDirectoryFact(entry: DoctorDirectoryEntry) {
     .join("; ");
   const specialty = entry.specialty || "специальность не указана";
   const room = entry.room ? `, каб. ${entry.room}` : "";
-  return `${entry.display_name} — ${specialty}${room}: ${schedule || "график не опубликован"}`;
+  const externalSlots = (entry.external_available_slots || [])
+    .slice(0, 4)
+    .map((slot) => new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Almaty" }).format(new Date(slot.startsAt)))
+    .join(", ");
+  return `${entry.display_name} — ${specialty}${room}: ${schedule || "график не опубликован"}${externalSlots ? `; DAMUMED свободно: ${externalSlots}` : ""}`;
 }
 
 export function buildDoctorDirectoryAnswer(entries: DoctorDirectoryEntry[]) {

@@ -25,6 +25,8 @@ export async function POST(request: Request) {
         "Внешний воркер МИС не настроен: задайте MIS_WORKER_SECRET.",
       );
     }
+    const workerTenantId = process.env.MIS_WORKER_TENANT_ID;
+    if (!workerTenantId) throw new AppError("mis_worker_tenant_not_configured", 503, "Внешний воркер не привязан к клинике.");
     if (!authorizeMisWorker(request)) {
       return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
@@ -39,7 +41,9 @@ export async function POST(request: Request) {
       const rows = (await sql`
         SELECT id, tenant_id, external_sync_attempts
         FROM appointments
-        WHERE id = ${item.appointmentId} AND external_sync_state = 'syncing'
+        WHERE id = ${item.appointmentId}
+          AND tenant_id = ${workerTenantId}
+          AND external_sync_state = 'syncing'
         LIMIT 1
       `) as ClaimedAppointment[];
 

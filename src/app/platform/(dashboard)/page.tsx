@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { PlatformTenantTable, type PlatformTenantRow } from "@/components/platform/platform-tenant-table";
+import { PlatformOperations } from "@/components/platform/platform-operations";
 import { getPlatformOverview } from "@/lib/dal/platform";
 import { platformPlanLabel, platformSubscriptionLabel } from "@/lib/platform-labels";
+import { parseBranding } from "@/lib/branding";
+import { parsePlatformSettings } from "@/lib/validation/platform-operations";
 
 export const metadata: Metadata = { title: "Управление платформой" };
 export const dynamic = "force-dynamic";
@@ -30,6 +33,23 @@ export default async function PlatformPage() {
     integrationTotal: Number(item.integration_total), integrationReady: Number(item.integration_ready), queuePending: Number(item.queue_pending), queueFailed: Number(item.queue_failed),
     lastActivity: new Date(String(item.last_activity_at)).toISOString(), protected: String(item.id) === data.admin.tenantId,
   })) satisfies PlatformTenantRow[];
+  const tenantChoices = tenants.map((tenant) => ({ id: tenant.id, name: tenant.name, plan: tenant.plan, subscriptionStatus: tenant.subscriptionStatus }));
+  const payments = data.payments.map((item) => ({
+    id: String(item.id), tenantName: String(item.tenant_name),
+    period: `${String(item.period_start)} — ${String(item.period_end)}`,
+    amountKzt: Number(item.amount_kzt), status: String(item.status), note: item.note ? String(item.note) : null,
+  }));
+  const tickets = data.support.map((item) => ({
+    id: String(item.id), tenantName: String(item.tenant_name), subject: String(item.subject),
+    category: String(item.category), priority: String(item.priority), status: String(item.status), updatedAt: String(item.updated_at),
+  }));
+  const operationFlags = data.flags.map((item) => ({ tenantId: String(item.tenant_id), tenantName: String(item.tenant_name), key: String(item.key), enabled: Boolean(item.enabled) }));
+  const brands = data.whiteLabel.map((item) => {
+    const brand = parseBranding(item.branding);
+    return { tenantId: String(item.tenant_id), tenantName: String(item.tenant_name), configured: Boolean(item.configured), displayName: brand.displayName, primaryColor: brand.primaryColor, logoUrl: brand.logoUrl };
+  });
+  const operationsSetting = data.settings.find((item) => String(item.key) === "operations");
+  const settings = parsePlatformSettings(operationsSetting?.value);
   const time = new Intl.DateTimeFormat("ru-KZ", { dateStyle: "medium", timeStyle: "short" });
   return (
     <div id="overview">
@@ -54,8 +74,8 @@ export default async function PlatformPage() {
           </div>
         </section>
 
-        <section className="rounded-[14px] border border-border bg-white/70 p-5" id="integrations">
-          <div className="border-b border-border pb-4"><h2 className="font-editorial text-2xl">Состояние платформы</h2><p className="mt-1 text-xs text-muted-foreground">Фактическая готовность провайдеров.</p></div>
+        <section className="rounded-[14px] border border-border bg-white/70 p-5" id="health">
+          <div className="border-b border-border pb-4" id="integrations"><h2 className="font-editorial text-2xl">Состояние платформы</h2><p className="mt-1 text-xs text-muted-foreground">Фактическая готовность провайдеров.</p></div>
           <HealthRow label="Database" ready={data.health.database === "connected"} value="Подключено" />
           <HealthRow label="Gemini Live" ready={data.health.voice === "ready"} value={data.health.voice === "ready" ? "Готов" : "Нужен провайдер"} />
           <HealthRow label="Telephony provider" ready={data.health.telephony === "ready"} value={data.health.telephony === "ready" ? "Готов" : "Требуется настройка"} />
@@ -70,16 +90,13 @@ export default async function PlatformPage() {
         </section>
       </div>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-2">
-        <section className="rounded-[14px] border border-border bg-white/70 p-5" id="flags">
-          <div className="border-b border-border pb-4"><h2 className="font-editorial text-2xl">Feature flags</h2><p className="mt-1 text-xs text-muted-foreground">Последние tenant-scoped переключатели.</p></div>
-          {data.flags.length ? <div className="divide-y divide-border/70">{data.flags.slice(0, 8).map((item) => <div className="flex items-center justify-between gap-4 py-4" key={`${String(item.tenant_id)}:${String(item.key)}`}><div><p className="font-semibold">{String(item.key)}</p><p className="mt-1 text-xs text-muted-foreground">{String(item.tenant_name)}</p></div><span className="inline-flex items-center gap-2 text-sm"><span className={`size-2 rounded-full ${item.enabled ? "bg-[#16834d]" : "bg-[#8a918d]"}`} />{item.enabled ? "Включён" : "Выключен"}</span></div>)}</div> : <p className="py-10 text-center text-sm text-muted-foreground">Feature flags не созданы.</p>}
-        </section>
+      <div className="mt-5">
         <section className="rounded-[14px] border border-border bg-white/70 p-5" id="subscriptions">
           <div className="border-b border-border pb-4"><h2 className="font-editorial text-2xl">Подписки и usage</h2><p className="mt-1 text-xs text-muted-foreground">Сводка по тарифам и текущему потреблению.</p></div>
           <div className="divide-y divide-border/70" id="usage">{tenants.slice(0, 8).map((tenant) => <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 py-4" key={tenant.id}><div><p className="font-semibold">{tenant.name}</p><p className="mt-1 text-xs text-muted-foreground">{platformSubscriptionLabel(tenant.subscriptionStatus)}</p></div><span className="text-sm">{platformPlanLabel(tenant.plan)}</span><span className="min-w-20 text-right text-sm font-semibold text-primary">{Number(tenant.usageTotal).toLocaleString("ru-KZ")}</span></div>)}</div>
         </section>
       </div>
+      <PlatformOperations brands={brands} flags={operationFlags} payments={payments} settings={settings} tenants={tenantChoices} tickets={tickets} />
     </div>
   );
 }

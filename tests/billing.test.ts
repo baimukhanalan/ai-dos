@@ -62,6 +62,23 @@ describe("тарифы и потребление", () => {
 });
 
 describe("бренд клиники", () => {
+  it("принимает очищенные optional-поля из формы", () => {
+    const parsed = brandingSchema.parse({
+      displayName: "AI Dos Clinic",
+      primaryColor: "#075B3B",
+      accentColor: null,
+      logoUrl: null,
+      supportPhone: null,
+      supportEmail: null,
+      locale: "ru",
+    });
+    expect(parsed).toMatchObject({
+      displayName: "AI Dos Clinic",
+      logoUrl: null,
+      supportEmail: null,
+    });
+  });
+
   it("принимает корректные значения", () => {
     const parsed = brandingSchema.parse({
       displayName: "Клиника «Аман»",

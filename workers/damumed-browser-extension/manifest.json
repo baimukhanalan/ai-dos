@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "AI Dos · DAMUMED Bridge",
+  "version": "0.1.0",
+  "description": "Переносит подтверждённые записи AI Dos в авторизованную электронную регистратуру и перечитывает результат.",
+  "permissions": ["alarms", "storage", "tabs"],
+  "host_permissions": [
+    "https://reg-ala.dmed.kz/*",
+    "https://ai-dos-sage.vercel.app/*",
+    "http://localhost:3000/*"
+  ],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "content_scripts": [
+    {
+      "matches": ["https://reg-ala.dmed.kz/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_title": "AI Dos · DAMUMED Bridge",
+    "default_popup": "popup.html"
+  }
+}
