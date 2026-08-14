@@ -22,8 +22,16 @@ type ApiData = {
   reply: string;
   verified: boolean;
   requiresIdentity: boolean;
+  canRegister?: boolean;
   outcome: string | null;
   appointmentId?: string | null;
+};
+type IdentityPayload = { phone: string; surname?: string; birthDate?: string };
+type RegistrationPayload = {
+  fullName: string;
+  phone: string;
+  birthDate: string;
+  consent: true;
 };
 
 const copy = {
@@ -46,6 +54,13 @@ const copy = {
     surname: "Фамилия",
     birthDate: "Дата рождения",
     verify: "Подтвердить и продолжить",
+    newPatient: "Я новый пациент",
+    existingPatient: "У меня уже есть карта",
+    registration: "Новый пациент",
+    registrationHint: "Создадим минимальную карту для записи. Медицинские данные здесь не запрашиваются.",
+    fullName: "Фамилия, имя и отчество",
+    consent: "Я согласен(на) на обработку данных для создания карты и записи на приём.",
+    register: "Создать карту и продолжить",
     verified: "Личность подтверждена",
     safety: "AI Dos не ставит диагнозы. В экстренной ситуации звоните 103 или 112.",
     back: "На главную",
@@ -65,6 +80,13 @@ const copy = {
     surname: "Тегі",
     birthDate: "Туған күні",
     verify: "Растау және жалғастыру",
+    newPatient: "Мен жаңа пациентпін",
+    existingPatient: "Менің картам бар",
+    registration: "Жаңа пациент",
+    registrationHint: "Жазылу үшін ең аз деректермен карта жасаймыз. Мұнда медициналық деректер сұралмайды.",
+    fullName: "Тегі, аты және әкесінің аты",
+    consent: "Карта жасау және қабылдауға жазылу үшін деректерімді өңдеуге келісемін.",
+    register: "Карта жасау және жалғастыру",
     verified: "Жеке бас расталды",
     safety: "AI Dos диагноз қоймайды. Шұғыл жағдайда 103 немесе 112 нөміріне қоңырау шалыңыз.",
     back: "Басты бетке",
@@ -84,6 +106,13 @@ const copy = {
     surname: "Surname",
     birthDate: "Date of birth",
     verify: "Verify and continue",
+    newPatient: "I’m a new patient",
+    existingPatient: "I already have a record",
+    registration: "New patient",
+    registrationHint: "We’ll create a minimal record for booking. No medical details are requested here.",
+    fullName: "Full name",
+    consent: "I consent to processing my data to create a patient record and book an appointment.",
+    register: "Create record and continue",
     verified: "Identity verified",
     safety: "AI Dos does not diagnose. In an emergency call 103 or 112.",
     back: "Home",
@@ -100,39 +129,52 @@ export function PublicAssistant({ clinicName }: { clinicName: string }) {
   const [input, setInput] = useState("");
   const [pendingMessage, setPendingMessage] = useState("");
   const [requiresIdentity, setRequiresIdentity] = useState(false);
+  const [canRegister, setCanRegister] = useState(false);
+  const [formMode, setFormMode] = useState<"identity" | "registration">("identity");
   const [verified, setVerified] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [phone, setPhone] = useState("");
   const [surname, setSurname] = useState("");
   const [birthDate, setBirthDate] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [consent, setConsent] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages, requiresIdentity]);
 
-  async function sendMessage(message: string, identity?: { phone: string; surname?: string; birthDate?: string }) {
+  async function sendMessage(
+    message: string,
+    credentials?: { identity?: IdentityPayload; registration?: RegistrationPayload },
+  ) {
     const text = message.trim();
     if (!text || busy) return;
     setBusy(true);
     setError("");
-    if (!identity) {
+    if (!credentials) {
       setMessages((items) => [...items, { id: crypto.randomUUID(), role: "patient", text }]);
     }
     try {
       const response = await fetch("/api/public/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, locale, identity }),
+        body: JSON.stringify({ message: text, locale, ...credentials }),
       });
       const payload = (await response.json()) as { ok: boolean; data?: ApiData; error?: { message?: string } };
       if (!response.ok || !payload.data) throw new Error(payload.error?.message || "Не удалось отправить сообщение.");
       setMessages((items) => [...items, { id: crypto.randomUUID(), role: "assistant", text: payload.data!.reply }]);
       setVerified(payload.data.verified);
       setRequiresIdentity(payload.data.requiresIdentity);
-      if (payload.data.requiresIdentity) setPendingMessage(text);
-      else setPendingMessage("");
+      setCanRegister(Boolean(payload.data.canRegister));
+      if (payload.data.requiresIdentity) {
+        setPendingMessage(text);
+        if (payload.data.canRegister === false) setFormMode("identity");
+      } else {
+        setPendingMessage("");
+        setFormMode("identity");
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Не удалось отправить сообщение.");
     } finally {
@@ -150,9 +192,24 @@ export function PublicAssistant({ clinicName }: { clinicName: string }) {
   function submitIdentity(event: FormEvent) {
     event.preventDefault();
     void sendMessage(pendingMessage, {
-      phone,
-      surname: surname || undefined,
-      birthDate: birthDate || undefined,
+      identity: {
+        phone,
+        surname: surname || undefined,
+        birthDate: birthDate || undefined,
+      },
+    });
+  }
+
+  function submitRegistration(event: FormEvent) {
+    event.preventDefault();
+    if (!consent) return;
+    void sendMessage(pendingMessage, {
+      registration: {
+        fullName,
+        phone,
+        birthDate,
+        consent: true,
+      },
     });
   }
 
@@ -160,6 +217,8 @@ export function PublicAssistant({ clinicName }: { clinicName: string }) {
     setLocale(next);
     setMessages([{ id: `greeting-${next}`, role: "assistant", text: copy[next].greeting as string }]);
     setRequiresIdentity(false);
+    setCanRegister(false);
+    setFormMode("identity");
     setPendingMessage("");
   }
 
@@ -205,7 +264,8 @@ export function PublicAssistant({ clinicName }: { clinicName: string }) {
           <div aria-live="polite" className="hide-scrollbar flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-6">
             {messages.map((message) => <div className={`flex ${message.role === "patient" ? "justify-end" : "justify-start"}`} key={message.id}><div className={`max-w-[88%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-6 ${message.role === "patient" ? "rounded-br-md bg-[var(--primary)] text-white" : "rounded-bl-md bg-[#edf4f1] text-[var(--ink)]"}`}>{message.text}</div></div>)}
             {busy ? <div className="w-fit rounded-2xl rounded-bl-md bg-[#edf4f1] px-4 py-3 text-sm text-[var(--ink-3)]">AI Dos отвечает…</div> : null}
-            {requiresIdentity ? <form className="rounded-2xl border border-[#c5ddda] bg-[#f2faf7] p-4" onSubmit={submitIdentity}><div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 size-5 text-[var(--primary)]" /><div><p className="font-semibold">{t.identity}</p><p className="mt-1 text-xs leading-5 text-[var(--ink-3)]">{t.identityHint}</p></div></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-xs font-semibold">{t.phone}<input className="mt-1 h-11 w-full rounded-lg border bg-white px-3 text-sm font-normal" onChange={(event) => setPhone(event.target.value)} placeholder="+7 700 000 00 00" required value={phone} /></label><label className="text-xs font-semibold">{t.surname}<input className="mt-1 h-11 w-full rounded-lg border bg-white px-3 text-sm font-normal" onChange={(event) => setSurname(event.target.value)} value={surname} /></label><label className="text-xs font-semibold sm:col-span-2">{t.birthDate}<input className="mt-1 h-11 w-full rounded-lg border bg-white px-3 text-sm font-normal" onChange={(event) => setBirthDate(event.target.value)} type="date" value={birthDate} /></label></div><button className="mt-4 h-11 w-full rounded-lg bg-[var(--primary)] px-4 text-sm font-semibold text-white disabled:opacity-50" disabled={busy || !phone || (!surname && !birthDate)} type="submit">{t.verify}</button></form> : null}
+            {requiresIdentity && formMode === "identity" ? <form className="rounded-2xl border border-[#c5ddda] bg-[#f2faf7] p-4" onSubmit={submitIdentity}><div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 size-5 text-[var(--primary)]" /><div><p className="font-semibold">{t.identity}</p><p className="mt-1 text-xs leading-5 text-[var(--ink-3)]">{t.identityHint}</p></div></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-xs font-semibold">{t.phone}<input autoComplete="tel" className="mt-1 h-11 w-full rounded-lg border bg-white px-3 text-sm font-normal" inputMode="tel" onChange={(event) => setPhone(event.target.value)} placeholder="+7 700 000 00 00" required value={phone} /></label><label className="text-xs font-semibold">{t.surname}<input autoComplete="family-name" className="mt-1 h-11 w-full rounded-lg border bg-white px-3 text-sm font-normal" onChange={(event) => setSurname(event.target.value)} value={surname} /></label><label className="text-xs font-semibold sm:col-span-2">{t.birthDate}<input autoComplete="bday" className="mt-1 h-11 w-full rounded-lg border bg-white px-3 text-sm font-normal" onChange={(event) => setBirthDate(event.target.value)} type="date" value={birthDate} /></label></div><button className="mt-4 h-11 w-full rounded-lg bg-[var(--primary)] px-4 text-sm font-semibold text-white disabled:opacity-50" disabled={busy || !phone || (!surname && !birthDate)} type="submit">{t.verify}</button>{canRegister ? <button className="mt-2 h-10 w-full text-sm font-semibold text-[var(--primary)]" onClick={() => setFormMode("registration")} type="button">{t.newPatient}</button> : null}</form> : null}
+            {requiresIdentity && formMode === "registration" ? <form className="rounded-2xl border border-[#c5ddda] bg-[#f2faf7] p-4" onSubmit={submitRegistration}><div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 size-5 text-[var(--primary)]" /><div><p className="font-semibold">{t.registration}</p><p className="mt-1 text-xs leading-5 text-[var(--ink-3)]">{t.registrationHint}</p></div></div><div className="mt-4 grid gap-3"><label className="text-xs font-semibold">{t.fullName}<input autoComplete="name" className="mt-1 h-11 w-full rounded-lg border bg-white px-3 text-sm font-normal" onChange={(event) => setFullName(event.target.value)} required value={fullName} /></label><label className="text-xs font-semibold">{t.phone}<input autoComplete="tel" className="mt-1 h-11 w-full rounded-lg border bg-white px-3 text-sm font-normal" inputMode="tel" onChange={(event) => setPhone(event.target.value)} placeholder="+7 700 000 00 00" required value={phone} /></label><label className="text-xs font-semibold">{t.birthDate}<input autoComplete="bday" className="mt-1 h-11 w-full rounded-lg border bg-white px-3 text-sm font-normal" onChange={(event) => setBirthDate(event.target.value)} required type="date" value={birthDate} /></label><label className="flex items-start gap-2 text-xs leading-5 text-[var(--ink-3)]"><input checked={consent} className="mt-1 size-4 accent-[var(--primary)]" onChange={(event) => setConsent(event.target.checked)} required type="checkbox" />{t.consent}</label></div><button className="mt-4 h-11 w-full rounded-lg bg-[var(--primary)] px-4 text-sm font-semibold text-white disabled:opacity-50" disabled={busy || !fullName.trim() || !phone || !birthDate || !consent} type="submit">{t.register}</button><button className="mt-2 h-10 w-full text-sm font-semibold text-[var(--primary)]" onClick={() => setFormMode("identity")} type="button">{t.existingPatient}</button></form> : null}
             <div ref={endRef} />
           </div>
           <form className="border-t border-[var(--rule)] bg-white/90 p-3 sm:p-4" onSubmit={submit}><div className="flex gap-2"><label className="sr-only" htmlFor="patient-message">{t.placeholder}</label><input className="h-12 min-w-0 flex-1 rounded-xl border border-[var(--rule-strong)] bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]/25" disabled={busy || requiresIdentity} id="patient-message" onChange={(event) => setInput(event.target.value)} placeholder={t.placeholder as string} value={input} /><button aria-label={t.send as string} className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 text-sm font-semibold text-white disabled:opacity-50" disabled={busy || requiresIdentity || !input.trim()} type="submit"><PaperPlaneTilt className="size-4" /><span className="hidden sm:inline">{t.send}</span></button></div>{error ? <p className="mt-2 text-xs font-medium text-red-700">{error}</p> : null}</form>

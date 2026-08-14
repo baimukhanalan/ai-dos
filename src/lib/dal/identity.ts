@@ -1,9 +1,17 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 import { identityDecision, type IdentityInput } from "@/lib/ai/identity";
 
 type Sql = NeonQueryFunction<false, false>;
+
+export type PublicPatientRegistration = {
+  fullName: string;
+  phone: string;
+  birthDate: string;
+  preferredLanguage: "ru" | "kk" | "en";
+};
 
 export type IdentityResult =
   | { status: "insufficient"; missing: string[] }
@@ -68,4 +76,52 @@ export async function verifyPatientIdentity(
   return rows[0]
     ? { status: "verified", patientId: rows[0].id }
     : { status: "not_found" };
+}
+
+/**
+ * Создаёт минимальную карточку пациента только вместе с явным согласием.
+ * Номер хранится канонически, а уникальный индекс по цифрам закрывает гонки
+ * между разными форматами одного номера.
+ */
+export async function registerPublicPatient(
+  sql: Sql,
+  tenantId: string,
+  input: PublicPatientRegistration,
+) {
+  const patientId = randomUUID();
+  const digits = input.phone.replace(/\D/g, "");
+  const phone = `+${digits}`;
+  const rows = (await sql`
+    WITH new_patient AS (
+      INSERT INTO patients (
+        id, tenant_id, full_name, phone, birth_date, preferred_language, notes
+      ) VALUES (
+        ${patientId}, ${tenantId}, ${input.fullName}, ${phone},
+        ${input.birthDate}, ${input.preferredLanguage},
+        'Создано пациентом через защищённый web-чат.'
+      )
+      ON CONFLICT DO NOTHING
+      RETURNING id
+    ), recorded_consent AS (
+      INSERT INTO patient_consents (
+        tenant_id, patient_id, purpose, status, source
+      )
+      SELECT ${tenantId}, id, 'appointment_booking', 'granted', 'public_web_assistant'
+      FROM new_patient
+      RETURNING patient_id
+    ), recorded_audit AS (
+      INSERT INTO audit_events (
+        tenant_id, actor_user_id, action, resource_type, resource_id, metadata
+      )
+      SELECT ${tenantId}, null, 'public.patient.created', 'patient', id,
+        ${JSON.stringify({ source: "public_web_assistant" })}::jsonb
+      FROM new_patient
+      RETURNING resource_id
+    )
+    SELECT id FROM new_patient
+  `) as Array<{ id: string }>;
+
+  return rows[0]
+    ? { status: "created" as const, patientId: rows[0].id }
+    : { status: "exists" as const };
 }

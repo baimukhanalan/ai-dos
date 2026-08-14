@@ -112,7 +112,7 @@ const intentMatchers: Array<{ intent: PatientIntent; pattern: RegExp }> = [
   { intent: "schedule_info", pattern: /график|режим\s+работ|часы\s+работ|во\s+сколько\s+открыт|hours|жұмыс\s+уақыт/i },
   { intent: "find_doctor", pattern: /как(ой|ому)\s+врач|какому\s+специал|к\s+кому\s+обрат|which\s+doctor|қай\s+дәрігер|қай\s+маман/i },
   { intent: "appointment_info", pattern: /моя\s+запис|когда\s+у\s+меня|подтверд[иь]те\s+запис|my\s+appointment|менің\s+жазб/i },
-  { intent: "book", pattern: /запис|записаться|при[её]м|слот|свободн[^\s]*\s+врем|appointment|book|жазыл|қабылдау/i },
+  { intent: "book", pattern: /запис|запиш|при[её]м|слот|свободн[^\s]*\s+врем|appointment|book|жазыл|қабылдау/i },
 ];
 
 export function detectIntent(text: string): PatientIntent {

@@ -4,7 +4,7 @@ import { loadClinicAiContext } from "@/lib/ai/clinic-context";
 import { safeAssistantReply } from "@/lib/ai/safe-assistant";
 import { runBookingTurnForTenant } from "@/lib/dal/booking";
 import { matchDoctor, type DoctorOption } from "@/lib/booking/flow";
-import { verifyPatientIdentity } from "@/lib/dal/identity";
+import { registerPublicPatient, verifyPatientIdentity } from "@/lib/dal/identity";
 import { recordEscalation } from "@/lib/dal/escalations";
 import {
   createCallbackForTenant,
@@ -57,9 +57,15 @@ function localizedIdentityPrompt(locale: "ru" | "kk" | "en") {
 }
 
 function localizedNotFound(locale: "ru" | "kk" | "en") {
-  if (locale === "kk") return "Деректер сәйкес келмеді. Қайта тексеріңіз немесе клиникадан кері қоңырау сұраңыз.";
-  if (locale === "en") return "The details did not match. Check them or request a callback from the clinic.";
-  return "Данные не совпали. Проверьте их или попросите сотрудника клиники перезвонить.";
+  if (locale === "kk") return "Деректер сәйкес келмеді. Оларды тексеріңіз немесе жаңа пациент ретінде тіркеліңіз.";
+  if (locale === "en") return "The details did not match. Check them or register as a new patient.";
+  return "Данные не совпали. Проверьте их или зарегистрируйтесь как новый пациент.";
+}
+
+function localizedPatientExists(locale: "ru" | "kk" | "en") {
+  if (locale === "kk") return "Бұл телефон нөмірі клиникада бар. Телефон және тегіңіз немесе туған күніңіз арқылы жеке басыңызды растаңыз.";
+  if (locale === "en") return "This phone number already exists at the clinic. Verify with your phone and either surname or date of birth.";
+  return "Этот номер уже есть в клинике. Подтвердите личность по телефону и фамилии или дате рождения.";
 }
 
 function localizedCallbackCreated(locale: "ru" | "kk" | "en") {
@@ -149,10 +155,14 @@ async function saveExchange(
   ]);
 }
 
-async function enforcePublicRateLimit(request: Request) {
+async function enforcePublicRateLimit(
+  request: Request,
+  scope = "chat",
+  limit = 60,
+) {
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   const source = forwarded || request.headers.get("x-real-ip") || "unknown";
-  const identifier = `public-assistant:${createHash("sha256").update(source).digest("hex")}`;
+  const identifier = `public-assistant:${scope}:${createHash("sha256").update(source).digest("hex")}`;
   const sql = db();
   const rows = (await sql`
     INSERT INTO auth_rate_limits (
@@ -170,7 +180,7 @@ async function enforcePublicRateLimit(request: Request) {
       blocked_until = CASE
         WHEN auth_rate_limits.blocked_until > now() THEN auth_rate_limits.blocked_until
         WHEN auth_rate_limits.window_started_at < now() - interval '1 hour' THEN null
-        WHEN auth_rate_limits.attempts + 1 > 60 THEN now() + interval '1 hour'
+        WHEN auth_rate_limits.attempts + 1 > ${limit} THEN now() + interval '1 hour'
         ELSE null
       END,
       updated_at = now()
@@ -200,6 +210,52 @@ export async function POST(request: Request) {
 
     let patientId = session.patientId;
     let verified = session.verified;
+    if (input.registration && !verified) {
+      const identityPrompts = (await sql`
+        SELECT 1 FROM messages
+        WHERE tenant_id = ${tenant.id}
+          AND conversation_id = ${session.conversationId}
+          AND model = 'ai-dos-public-identity'
+          AND created_at > now() - interval '15 minutes'
+        LIMIT 1
+      `) as Array<{ exists: number }>;
+      if (!identityPrompts[0]) {
+        throw new AppError(
+          "registration_not_requested",
+          409,
+          "Сначала начните запись или запросите обратный звонок.",
+        );
+      }
+      await enforcePublicRateLimit(request, "registration", 3);
+      const registration = await registerPublicPatient(sql, tenant.id, {
+        fullName: input.registration.fullName,
+        phone: input.registration.phone,
+        birthDate: input.registration.birthDate,
+        preferredLanguage: input.locale,
+      });
+      if (registration.status === "exists") {
+        return Response.json(
+          {
+            ok: true,
+            data: {
+              clinic: tenant.name,
+              conversationId: session.conversationId,
+              reply: localizedPatientExists(input.locale),
+              verified: false,
+              requiresIdentity: true,
+              canRegister: false,
+              stage: null,
+              outcome: null,
+              slots: [],
+            },
+          },
+          { headers: { "Cache-Control": "no-store" } },
+        );
+      }
+      patientId = registration.patientId;
+      verified = true;
+      await bindVerifiedPatient(tenant.id, session.id, registration.patientId);
+    }
     if (input.identity && !verified) {
       const identity = await verifyPatientIdentity(sql, tenant.id, {
         phone: input.identity.phone,
@@ -216,6 +272,7 @@ export async function POST(request: Request) {
               reply: localizedNotFound(input.locale),
               verified: false,
               requiresIdentity: true,
+              canRegister: true,
               stage: null,
               outcome: null,
               slots: [],
@@ -293,6 +350,7 @@ export async function POST(request: Request) {
           reply,
           verified: false,
           requiresIdentity: true,
+          canRegister: true,
           stage: null,
           outcome: null,
           slots: [],
@@ -402,6 +460,7 @@ export async function POST(request: Request) {
           reply,
           verified: false,
           requiresIdentity: true,
+          canRegister: true,
           stage: null,
           outcome: null,
           slots: [],
