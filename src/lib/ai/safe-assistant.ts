@@ -45,6 +45,12 @@ export type ClinicGroundingContext = {
     specialty: string | null;
     branch: string | null;
     languages: string[];
+    weeklySchedule?: Array<{
+      weekday: number;
+      startsAt: string;
+      endsAt: string;
+      slotMinutes: number;
+    }>;
   }>;
   branches: Array<{
     id: string;

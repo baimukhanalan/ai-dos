@@ -18,6 +18,10 @@ import { apiError, AppError } from "@/lib/errors";
 import { callbackSchema } from "@/lib/validation/operations";
 import { verifyPatientIdentity } from "@/lib/dal/identity";
 import { isVerifiedVoicePatient } from "@/lib/voice/patient-context";
+import {
+  buildDoctorDirectoryAnswer,
+  type DoctorDirectoryEntry,
+} from "@/lib/ai/doctor-directory";
 
 export const runtime = "nodejs";
 
@@ -134,12 +138,28 @@ export async function POST(request: Request) {
     switch (input.name) {
       case "search_clinic_knowledge": {
         const args = searchSchema.parse(input.args);
-        data = {
-          articles: await searchClinicKnowledge({
+        const asksAboutDoctors =
+          /врач|доктор|специал|график|расписан|дәрігер|маман|doctor|specialist|schedule/i.test(
+            args.query,
+          );
+        const [articles, activeDoctors] = await Promise.all([
+          searchClinicKnowledge({
             tenantId: user.tenantId,
             query: args.query,
             locale: args.locale,
           }),
+          asksAboutDoctors ? listPublicDoctors(user.tenantId) : Promise.resolve([]),
+        ]);
+        data = {
+          articles,
+          ...(asksAboutDoctors
+            ? {
+                activeDoctors,
+                exactDoctorAnswer: buildDoctorDirectoryAnswer(
+                  activeDoctors as unknown as DoctorDirectoryEntry[],
+                ),
+              }
+            : {}),
         };
         break;
       }
@@ -164,9 +184,12 @@ export async function POST(request: Request) {
         ]);
         data = {
           sourcePolicy:
-            "Published knowledge is authoritative for doctor names and work schedules. If it conflicts with structuredDoctors, answer only from publishedKnowledge. structuredDoctors are used only to resolve booking IDs after an exact name match.",
+            "The exactDoctorAnswer is generated server-side from the current tenant's active doctor directory and weekly schedule. Follow it exactly. Published knowledge supplies additional clinic wording. Never mention a doctor absent from activeDoctors.",
+          exactDoctorAnswer: buildDoctorDirectoryAnswer(
+            structuredDoctors as unknown as DoctorDirectoryEntry[],
+          ),
           publishedKnowledge,
-          structuredDoctors,
+          activeDoctors: structuredDoctors,
         };
         break;
       }

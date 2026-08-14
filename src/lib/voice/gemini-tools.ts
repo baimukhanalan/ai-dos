@@ -6,7 +6,7 @@ export const geminiLiveTools: Tool[] = [
       {
         name: "search_clinic_knowledge",
         description:
-          "Search the current clinic's published and approved knowledge base. Always use for doctor names, staff availability, doctor schedules, address, working hours, preparation instructions, policies and other clinic facts.",
+          "Search the current clinic's published and approved knowledge base. For doctor or schedule questions it also returns activeDoctors and an exactDoctorAnswer generated from the current tenant schedule. Follow exactDoctorAnswer and never invent a name.",
         parametersJsonSchema: {
           type: "object",
           additionalProperties: false,
@@ -32,7 +32,7 @@ export const geminiLiveTools: Tool[] = [
       {
         name: "list_doctors",
         description:
-          "Get authoritative published knowledge about doctor names and schedules together with structured booking records. Always prefer publishedKnowledge when names or schedules conflict with structuredDoctors. When the patient asks for a schedule, state the exact days and time ranges from publishedKnowledge instead of summarizing them as morning or afternoon. Use structuredDoctors only for an exact booking ID match.",
+          "Get the current tenant's active doctors, exact weekly schedules and published knowledge. Read exactDoctorAnswer faithfully: do not replace exact hours with morning/afternoon and never name a doctor absent from activeDoctors. Use each activeDoctors id only after matching that exact doctor for booking.",
         parametersJsonSchema: {
           type: "object",
           additionalProperties: false,

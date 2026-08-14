@@ -33,6 +33,12 @@ type DoctorRow = {
   specialty: string | null;
   branch: string | null;
   languages: string[];
+  weekly_schedule: Array<{
+    weekday: number;
+    startsAt: string;
+    endsAt: string;
+    slotMinutes: number;
+  }>;
 };
 
 type BranchRow = {
@@ -92,7 +98,22 @@ export async function loadClinicAiContext(
       `,
       sql`
         SELECT d.id, d.display_name, d.languages, s.name AS specialty,
-          b.name AS branch
+          b.name AS branch,
+          COALESCE((
+            SELECT jsonb_agg(
+              jsonb_build_object(
+                'weekday', r.weekday,
+                'startsAt', to_char(r.starts_at, 'HH24:MI'),
+                'endsAt', to_char(r.ends_at, 'HH24:MI'),
+                'slotMinutes', r.slot_minutes
+              )
+              ORDER BY r.weekday, r.starts_at
+            )
+            FROM schedule_rules r
+            WHERE r.tenant_id = d.tenant_id
+              AND r.doctor_id = d.id
+              AND r.active = true
+          ), '[]'::jsonb) AS weekly_schedule
         FROM doctors d
         LEFT JOIN specialties s
           ON s.id = d.specialty_id AND s.tenant_id = d.tenant_id
@@ -151,6 +172,7 @@ export async function loadClinicAiContext(
       specialty: row.specialty,
       branch: row.branch,
       languages: row.languages,
+      weeklySchedule: row.weekly_schedule,
     })),
     branches: (branchRows as BranchRow[]).map((row) => ({
       id: row.id,

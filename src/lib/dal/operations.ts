@@ -420,17 +420,68 @@ export async function resolvePublicTenant() {
 
 export async function listPublicDoctors(tenantId: string, specialty?: string) {
   const sql = db();
-  return sql`
+  const rows = (await sql`
     SELECT d.id, d.display_name, d.languages, d.room, s.name AS specialty,
-      b.name AS branch
+      b.name AS branch,
+      COALESCE((
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'weekday', r.weekday,
+            'startsAt', to_char(r.starts_at, 'HH24:MI'),
+            'endsAt', to_char(r.ends_at, 'HH24:MI'),
+            'slotMinutes', r.slot_minutes
+          )
+          ORDER BY r.weekday, r.starts_at
+        )
+        FROM schedule_rules r
+        WHERE r.tenant_id = d.tenant_id
+          AND r.doctor_id = d.id
+          AND r.active = true
+      ), '[]'::jsonb) AS weekly_schedule,
+      COALESCE((
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'date', e.exception_date,
+            'startsAt', CASE WHEN e.starts_at IS NULL THEN NULL ELSE to_char(e.starts_at, 'HH24:MI') END,
+            'endsAt', CASE WHEN e.ends_at IS NULL THEN NULL ELSE to_char(e.ends_at, 'HH24:MI') END,
+            'available', e.available,
+            'reason', e.reason
+          )
+          ORDER BY e.exception_date, e.starts_at
+        )
+        FROM schedule_exceptions e
+        WHERE e.tenant_id = d.tenant_id
+          AND e.doctor_id = d.id
+          AND e.exception_date BETWEEN CURRENT_DATE AND CURRENT_DATE + 30
+      ), '[]'::jsonb) AS upcoming_exceptions
     FROM doctors d
     LEFT JOIN specialties s ON s.id = d.specialty_id AND s.tenant_id = d.tenant_id
     LEFT JOIN branches b ON b.id = d.branch_id AND b.tenant_id = d.tenant_id
     WHERE d.tenant_id = ${tenantId} AND d.active = true
-      AND (${specialty || null}::text IS NULL OR lower(s.name) LIKE '%' || lower(${specialty || ""}) || '%')
     ORDER BY d.display_name
     LIMIT 30
-  `;
+  `) as Array<Record<string, unknown>>;
+
+  if (!specialty) return rows;
+
+  const normalizedQuery = specialty.toLocaleLowerCase("ru-KZ");
+  const aliases = [
+    normalizedQuery,
+    ...(normalizedQuery.includes("воп") || /общ\S*\s+практ/i.test(normalizedQuery)
+      ? ["общая практика"]
+      : []),
+    ...(normalizedQuery.includes("педиатр") ? ["педиатрия"] : []),
+    ...(normalizedQuery.includes("терапев") ? ["терапия"] : []),
+  ];
+  const matches = rows.filter((row) => {
+    const value = String(row.specialty || "").toLocaleLowerCase("ru-KZ");
+    return aliases.some((alias) => value.includes(alias) || alias.includes(value));
+  });
+
+  // Никогда не превращаем неточное название специальности от распознавания
+  // речи в ложное утверждение «врачей нет»: модель получит полный активный
+  // справочник и сможет уточнить специализацию по фактическим данным.
+  return matches.length ? matches : rows;
 }
 
 export async function listPublicServices(tenantId: string) {
