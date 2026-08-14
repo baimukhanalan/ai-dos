@@ -10,13 +10,13 @@ import {
   PlugsConnected,
 } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/portal/page-header";
-import { requireUser } from "@/lib/dal/auth";
+import { requirePageRoles } from "@/lib/dal/auth";
 
 export const metadata: Metadata = { title: "Настройки" };
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const user = await requireUser();
+  const user = await requirePageRoles(["clinic_admin"]);
   const safeAiMode = process.env.AI_RUNTIME !== "openai";
   const integrations = [
     {

@@ -1,10 +1,10 @@
 import "server-only";
 
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/dal/auth";
+import { requireRoles } from "@/lib/dal/auth";
 
 export async function getPortalOverview() {
-  const user = await requireUser();
+  const user = await requireRoles(["clinic_admin", "operator"]);
   const sql = db();
 
   const [conversations, messages, appointments, doctors, services, callbacks] =
@@ -86,7 +86,7 @@ export async function getPortalOverview() {
 }
 
 export async function getPatients() {
-  const user = await requireUser();
+  const user = await requireRoles(["clinic_admin", "operator"]);
   const sql = db();
   const patients = await sql`
     SELECT p.id, p.full_name, p.phone, p.email, p.birth_date, p.preferred_language,
@@ -104,7 +104,7 @@ export async function getPatients() {
 }
 
 export async function getSchedule() {
-  const user = await requireUser();
+  const user = await requireRoles(["clinic_admin", "operator"]);
   const sql = db();
   const [appointments, doctors, patients, services] = await Promise.all([
     sql`
@@ -147,7 +147,7 @@ export async function getSchedule() {
 }
 
 export async function getKnowledge() {
-  const user = await requireUser();
+  const user = await requireRoles(["clinic_admin", "operator"]);
   const sql = db();
   const articles = await sql`
     SELECT a.id, a.title, a.slug, a.status, a.updated_at,
@@ -175,7 +175,7 @@ export async function getKnowledge() {
 }
 
 export async function getReports() {
-  const user = await requireUser();
+  const user = await requireRoles(["clinic_admin", "operator"]);
   const sql = db();
   const [summary, daily] = await Promise.all([
     sql`
@@ -225,7 +225,7 @@ export async function getReports() {
 }
 
 export async function getVoiceCenter() {
-  const user = await requireUser();
+  const user = await requireRoles(["clinic_admin", "operator"]);
   const sql = db();
   const [phoneNumbers, sessions, calls] = await Promise.all([
     sql`
@@ -270,7 +270,7 @@ export async function getVoiceCenter() {
 }
 
 export async function getOperationsHub() {
-  const user = await requireUser();
+  const user = await requireRoles(["clinic_admin", "operator"]);
   const sql = db();
   const [
     escalations,
@@ -379,9 +379,9 @@ export async function getOperationsHub() {
 }
 
 export async function getClinicHub() {
-  const user = await requireUser();
+  const user = await requireRoles(["clinic_admin"]);
   const sql = db();
-  const [branches, departments, doctors, staff, services, roles] =
+  const [branches, departments, doctors, staff, services, roles, invitations] =
     await Promise.all([
       sql`
         SELECT b.id, b.name, b.address, b.phone, b.timezone, b.active,
@@ -401,13 +401,15 @@ export async function getClinicHub() {
       sql`
         SELECT d.id, d.display_name, d.full_name, d.languages, d.room, d.active,
           s.name AS specialty_name, b.name AS branch_name,
+          l.user_id AS linked_user_id,
           count(a.id) FILTER (WHERE a.starts_at >= now() AND a.status = 'confirmed')::int AS upcoming_count
         FROM doctors d
         LEFT JOIN specialties s ON s.id = d.specialty_id AND s.tenant_id = d.tenant_id
         LEFT JOIN branches b ON b.id = d.branch_id AND b.tenant_id = d.tenant_id
         LEFT JOIN appointments a ON a.doctor_id = d.id AND a.tenant_id = d.tenant_id
+        LEFT JOIN doctor_user_links l ON l.doctor_id = d.id AND l.tenant_id = d.tenant_id
         WHERE d.tenant_id = ${user.tenantId}
-        GROUP BY d.id, s.name, b.name
+        GROUP BY d.id, s.name, b.name, l.user_id
         ORDER BY d.display_name
       `,
       sql`
@@ -439,12 +441,28 @@ export async function getClinicHub() {
         GROUP BY r.id
         ORDER BY r.name
       `,
+      sql`
+        SELECT id, email, full_name, role_code, expires_at, created_at
+        FROM staff_invitations
+        WHERE tenant_id = ${user.tenantId}
+          AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > now()
+        ORDER BY created_at DESC
+      `,
     ]);
-  return { user, branches, departments, doctors, staff, services, roles };
+  return {
+    user,
+    branches,
+    departments,
+    doctors,
+    staff,
+    services,
+    roles,
+    invitations,
+  };
 }
 
 export async function getAutomationHub() {
-  const user = await requireUser();
+  const user = await requireRoles(["clinic_admin"]);
   const sql = db();
   const [
     scenarios,
@@ -537,7 +555,7 @@ export async function getAutomationHub() {
 }
 
 export async function getAdministrationHub() {
-  const user = await requireUser();
+  const user = await requireRoles(["clinic_admin"]);
   const sql = db();
   const [audit, subscription, usage, flags, integrationHealth] =
     await Promise.all([

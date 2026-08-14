@@ -12,6 +12,7 @@ import { UrgentDecision } from "@/components/portal/urgent-decision";
 import { WaitlistOfferActions } from "@/components/portal/waitlist-offer-actions";
 import { listBookingSessions } from "@/lib/dal/booking";
 import { getOperationsHub } from "@/lib/dal/portal";
+import { requirePageRoles } from "@/lib/dal/auth";
 import { lostReasonLabels } from "@/lib/analytics/revenue";
 
 const escalationReasonLabels: Record<string, string> = {
@@ -42,6 +43,7 @@ export const metadata: Metadata = { title: "Операции" };
 export const dynamic = "force-dynamic";
 
 export default async function OperationsPage() {
+  await requirePageRoles(["clinic_admin", "operator"]);
   const [data, bookingSessions] = await Promise.all([
     getOperationsHub(),
     listBookingSessions(),

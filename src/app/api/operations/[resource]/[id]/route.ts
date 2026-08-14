@@ -25,7 +25,7 @@ export async function PATCH(
   context: { params: Promise<{ resource: string; id: string }> },
 ) {
   try {
-    const user = await requireRoles(["clinic_admin", "operator", "doctor"]);
+    const user = await requireRoles(["clinic_admin", "operator"]);
     const params = paramsSchema.parse(await context.params);
     const body = (await request.json()) as { status?: unknown };
     const status = statusSchemas[params.resource].parse(body.status);

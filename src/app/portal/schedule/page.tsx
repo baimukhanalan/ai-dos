@@ -8,11 +8,13 @@ import { AppointmentCreateForm } from "@/components/portal/appointment-create-fo
 import { AppointmentActions } from "@/components/portal/appointment-actions";
 import { PageHeader } from "@/components/portal/page-header";
 import { getSchedule } from "@/lib/dal/portal";
+import { requirePageRoles } from "@/lib/dal/auth";
 
 export const metadata: Metadata = { title: "Расписание" };
 export const dynamic = "force-dynamic";
 
 export default async function SchedulePage() {
+  await requirePageRoles(["clinic_admin", "operator"]);
   const data = await getSchedule();
   const dayFormatter = new Intl.DateTimeFormat("ru-KZ", {
     timeZone: data.user.timezone,

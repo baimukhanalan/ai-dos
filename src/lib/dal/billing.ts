@@ -2,7 +2,7 @@ import "server-only";
 
 import type { z } from "zod";
 import { db } from "@/lib/db";
-import { requireRoles, requireUser } from "@/lib/dal/auth";
+import { requireRoles } from "@/lib/dal/auth";
 import {
   brandingSettingsKey,
   defaultBranding,
@@ -25,7 +25,7 @@ export function paymentState(planCode: string) {
 }
 
 export async function getBillingOverview() {
-  const user = await requireUser();
+  const user = await requireRoles(["clinic_admin"]);
   const sql = db();
   const [subscriptions, counters, branding] = await Promise.all([
     sql`

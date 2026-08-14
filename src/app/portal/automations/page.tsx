@@ -4,6 +4,7 @@ import { AutomationCreate } from "@/components/portal/automation-create";
 import { PageHeader } from "@/components/portal/page-header";
 import { EmptyModule, ModuleSection, StatusPill } from "@/components/portal/module-section";
 import { getAutomationHub } from "@/lib/dal/portal";
+import { requirePageRoles } from "@/lib/dal/auth";
 import { deliveryReadiness } from "@/lib/notifications/dispatcher";
 import { notificationChannelLabels } from "@/lib/notifications/templates";
 
@@ -40,6 +41,7 @@ const deliveryStatusLabels: Record<string, string> = {
 };
 
 export default async function AutomationsPage() {
+  await requirePageRoles(["clinic_admin"]);
   const data = await getAutomationHub();
   const readiness = deliveryReadiness();
   const stats = new Map(data.deliveryStats.map((row) => [row.status, row.count]));

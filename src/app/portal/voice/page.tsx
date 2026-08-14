@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/portal/page-header";
 import { PhoneNumberForm } from "@/components/portal/phone-number-form";
 import { VoiceLab } from "@/components/portal/voice-lab";
 import { getVoiceCenter } from "@/lib/dal/portal";
+import { requirePageRoles } from "@/lib/dal/auth";
 
 export const metadata: Metadata = { title: "Голос и телефония" };
 export const dynamic = "force-dynamic";
@@ -29,6 +30,7 @@ function Status({ ready, children }: { ready: boolean; children: React.ReactNode
 }
 
 export default async function VoicePage() {
+  await requirePageRoles(["clinic_admin", "operator"]);
   const data = await getVoiceCenter();
   const currentNumber = data.phoneNumbers[0];
   const phoneReady =

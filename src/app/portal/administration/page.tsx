@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { PageHeader } from "@/components/portal/page-header";
 import { EmptyModule, ModuleSection, StatusPill } from "@/components/portal/module-section";
 import { getAdministrationHub } from "@/lib/dal/portal";
+import { requirePageRoles } from "@/lib/dal/auth";
 
 export const metadata: Metadata = { title: "Управление" };
 export const dynamic = "force-dynamic";
 
 export default async function AdministrationPage() {
+  await requirePageRoles(["clinic_admin"]);
   const data = await getAdministrationHub();
   const subscription = data.subscription;
   return (

@@ -9,6 +9,7 @@ import { KnowledgeCreateForm } from "@/components/portal/knowledge-create-form";
 import { RuleCreateForm } from "@/components/portal/rule-create-form";
 import { PageHeader } from "@/components/portal/page-header";
 import { getKnowledge } from "@/lib/dal/portal";
+import { requirePageRoles } from "@/lib/dal/auth";
 import { getKnowledgeRulesForPortal } from "@/lib/dal/knowledge-rules";
 import { ruleCategoryLabels, type RuleCategory } from "@/lib/ai/knowledge-rules";
 
@@ -16,6 +17,7 @@ export const metadata: Metadata = { title: "База знаний" };
 export const dynamic = "force-dynamic";
 
 export default async function KnowledgePage() {
+  await requirePageRoles(["clinic_admin", "operator"]);
   const [{ articles }, { rules }] = await Promise.all([
     getKnowledge(),
     getKnowledgeRulesForPortal(),

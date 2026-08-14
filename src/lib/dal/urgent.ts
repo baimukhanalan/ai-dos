@@ -9,6 +9,7 @@ import { pickChannel } from "@/lib/notifications/routing";
 import { resolveLocale } from "@/lib/notifications/templates";
 import { offerTtlMinutes } from "@/lib/scheduling/matching";
 import { AppError } from "@/lib/errors";
+import { linkedDoctorId } from "@/lib/dal/doctor";
 
 export type UrgentDecisionInput =
   | { action: "approve"; startsAt: string; note?: string | null }
@@ -114,6 +115,16 @@ export async function resolveUrgentRequest(id: string, decision: UrgentDecisionI
   const row = await loadUrgent(sql, user.tenantId, id);
 
   if (!row) throw new AppError("urgent_not_found", 404, "Срочный запрос не найден.");
+  if (user.role === "doctor") {
+    const doctorId = await linkedDoctorId(user);
+    if (row.doctor_id !== doctorId) {
+      throw new AppError(
+        "urgent_not_found",
+        404,
+        "Срочный запрос не найден.",
+      );
+    }
+  }
   if (row.status !== "pending") {
     throw new AppError("urgent_not_pending", 409, "Этот запрос уже обработан.");
   }

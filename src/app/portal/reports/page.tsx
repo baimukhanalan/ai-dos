@@ -7,6 +7,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/portal/page-header";
 import { getReports } from "@/lib/dal/portal";
+import { requirePageRoles } from "@/lib/dal/auth";
 import {
   getAutonomyStats,
   getBookingOutcomes,
@@ -45,6 +46,7 @@ const intentLabels: Record<PatientIntent, string> = {
 const languageLabels: Record<string, string> = { ru: "Русский", kk: "Қазақша", en: "English" };
 
 export default async function ReportsPage() {
+  await requirePageRoles(["clinic_admin", "operator"]);
   const [{ summary, daily }, revenue, demand, autonomy, booking] = await Promise.all([
     getReports(),
     getRevenueOverview(),

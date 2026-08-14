@@ -14,30 +14,34 @@ import {
   GearSix,
   Headset,
   MicrophoneStage,
+  Stethoscope,
   SlidersHorizontal,
   SignOut,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 const links = [
-  { href: "/portal", label: "Разговоры", icon: ChatCenteredText },
-  { href: "/portal/voice", label: "Голос", icon: MicrophoneStage },
-  { href: "/portal/operations", label: "Операции", icon: Headset },
-  { href: "/portal/schedule", label: "Расписание", icon: CalendarDots },
-  { href: "/portal/patients", label: "Пациенты", icon: AddressBook },
-  { href: "/portal/clinic", label: "Клиника", icon: Buildings },
-  { href: "/portal/knowledge", label: "База знаний", icon: BookOpenText },
-  { href: "/portal/automations", label: "Автоматизация", icon: FlowArrow },
-  { href: "/portal/reports", label: "Отчёты", icon: ChartBar },
-  { href: "/portal/billing", label: "Тариф", icon: CreditCard },
-  { href: "/portal/administration", label: "Управление", icon: GearSix },
-  { href: "/portal/settings", label: "Настройки", icon: SlidersHorizontal },
+  { href: "/portal", label: "Разговоры", icon: ChatCenteredText, roles: ["clinic_admin", "operator"] },
+  { href: "/portal/doctor", label: "Мой кабинет", icon: Stethoscope, roles: ["doctor"] },
+  { href: "/portal/voice", label: "Голос", icon: MicrophoneStage, roles: ["clinic_admin", "operator"] },
+  { href: "/portal/operations", label: "Операции", icon: Headset, roles: ["clinic_admin", "operator"] },
+  { href: "/portal/schedule", label: "Расписание", icon: CalendarDots, roles: ["clinic_admin", "operator"] },
+  { href: "/portal/patients", label: "Пациенты", icon: AddressBook, roles: ["clinic_admin", "operator"] },
+  { href: "/portal/clinic", label: "Клиника", icon: Buildings, roles: ["clinic_admin"] },
+  { href: "/portal/knowledge", label: "База знаний", icon: BookOpenText, roles: ["clinic_admin", "operator"] },
+  { href: "/portal/automations", label: "Автоматизация", icon: FlowArrow, roles: ["clinic_admin"] },
+  { href: "/portal/reports", label: "Отчёты", icon: ChartBar, roles: ["clinic_admin", "operator"] },
+  { href: "/portal/billing", label: "Тариф", icon: CreditCard, roles: ["clinic_admin"] },
+  { href: "/portal/administration", label: "Управление", icon: GearSix, roles: ["clinic_admin"] },
+  { href: "/portal/settings", label: "Настройки", icon: SlidersHorizontal, roles: ["clinic_admin"] },
 ];
 
 export function PortalNav({
   variant = "sidebar",
+  role,
 }: {
   variant?: "sidebar" | "mobile";
+  role: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -65,7 +69,7 @@ export function PortalNav({
         )}
         aria-label="Навигация портала"
       >
-        {links.map(({ href, label, icon: Icon }) => {
+        {links.filter((item) => item.roles.includes(role)).map(({ href, label, icon: Icon }) => {
           const active =
             href === "/portal" ? pathname === href : pathname.startsWith(href);
           return (

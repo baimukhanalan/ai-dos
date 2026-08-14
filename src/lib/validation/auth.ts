@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const password = z
+export const passwordSchema = z
   .string()
   .min(10, "Минимум 10 символов")
   .max(128, "Слишком длинный пароль")
@@ -16,7 +16,7 @@ export const registerSchema = z.object({
   fullName: z.string().trim().min(2, "Укажите имя").max(120),
   clinicName: z.string().trim().min(2, "Укажите клинику").max(160),
   email: z.string().trim().toLowerCase().email("Укажите корректный email"),
-  password,
+  password: passwordSchema,
   consent: z.literal(true, {
     error: "Подтвердите согласие с условиями обработки данных",
   }),

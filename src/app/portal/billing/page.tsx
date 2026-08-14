@@ -7,6 +7,7 @@ import {
 import { BrandingForm } from "@/components/portal/branding-form";
 import { PlanSelector } from "@/components/portal/plan-selector";
 import { getBillingOverview } from "@/lib/dal/billing";
+import { requirePageRoles } from "@/lib/dal/auth";
 
 export const metadata: Metadata = { title: "Тариф и бренд" };
 export const dynamic = "force-dynamic";
@@ -18,6 +19,7 @@ const paymentStateLabels: Record<string, string> = {
 };
 
 export default async function BillingPage() {
+  await requirePageRoles(["clinic_admin"]);
   const data = await getBillingOverview();
   const paymentState = data.subscription?.payment_state || "not_required";
 

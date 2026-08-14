@@ -102,6 +102,8 @@ export async function registerTenant(input: RegisterInput) {
   const clinicId = randomUUID();
   const branchId = randomUUID();
   const roleId = randomUUID();
+  const operatorRoleId = randomUUID();
+  const doctorRoleId = randomUUID();
   const userId = randomUUID();
   const specialtyId = randomUUID();
   const specialtyTwoId = randomUUID();
@@ -122,7 +124,9 @@ export async function registerTenant(input: RegisterInput) {
       sql`INSERT INTO tenants (id, name, slug) VALUES (${tenantId}, ${input.clinicName}, ${slug})`,
       sql`INSERT INTO clinics (id, tenant_id, name, email) VALUES (${clinicId}, ${tenantId}, ${input.clinicName}, ${input.email})`,
       sql`INSERT INTO branches (id, tenant_id, clinic_id, name, address) VALUES (${branchId}, ${tenantId}, ${clinicId}, 'Главный филиал', 'Укажите адрес в настройках')`,
-      sql`INSERT INTO roles (id, tenant_id, code, name, system) VALUES (${roleId}, ${tenantId}, 'clinic_admin', 'Администратор клиники', true)`,
+      sql`INSERT INTO roles (id, tenant_id, code, name, system) VALUES (${roleId}, ${tenantId}, 'clinic_admin', 'Администратор клиники', true), (${operatorRoleId}, ${tenantId}, 'operator', 'Регистратор', true), (${doctorRoleId}, ${tenantId}, 'doctor', 'Врач', true)`,
+      sql`INSERT INTO role_permissions (role_id, permission_id) SELECT ${operatorRoleId}, id FROM permissions WHERE code = ANY(ARRAY['patients.read','patients.write','schedule.read','appointments.write','conversations.read','conversations.write']::text[])`,
+      sql`INSERT INTO role_permissions (role_id, permission_id) SELECT ${doctorRoleId}, id FROM permissions WHERE code = ANY(ARRAY['schedule.read','appointments.write']::text[])`,
       sql`INSERT INTO users (id, tenant_id, email, password_hash, full_name) VALUES (${userId}, ${tenantId}, ${input.email}, ${passwordHash}, ${input.fullName})`,
       sql`INSERT INTO user_roles (tenant_id, user_id, role_id) VALUES (${tenantId}, ${userId}, ${roleId})`,
       sql`INSERT INTO specialties (id, tenant_id, name, code) VALUES (${specialtyId}, ${tenantId}, 'Терапия', 'therapy'), (${specialtyTwoId}, ${tenantId}, 'Кардиология', 'cardiology')`,
@@ -365,4 +369,12 @@ export async function requirePageUser() {
   } catch {
     redirect("/login");
   }
+}
+
+export async function requirePageRoles(allowed: string[]) {
+  const user = await requirePageUser();
+  if (!allowed.includes(user.role)) {
+    redirect(user.role === "doctor" ? "/portal/doctor" : "/portal");
+  }
+  return user;
 }

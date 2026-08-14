@@ -6,11 +6,14 @@ import {
   StatusPill,
 } from "@/components/portal/module-section";
 import { getClinicHub } from "@/lib/dal/portal";
+import { StaffInviteForm } from "@/components/portal/staff-invite-form";
+import { requirePageRoles } from "@/lib/dal/auth";
 
 export const metadata: Metadata = { title: "Клиника" };
 export const dynamic = "force-dynamic";
 
 export default async function ClinicPage() {
+  await requirePageRoles(["clinic_admin"]);
   const data = await getClinicHub();
   const money = new Intl.NumberFormat("ru-KZ");
   return (
@@ -20,6 +23,13 @@ export default async function ClinicPage() {
         title="Клиника"
         description="Филиалы, отделения, врачи, сотрудники, услуги, цены, роли и права внутри текущего tenant."
       />
+      <div className="mb-5">
+        <StaffInviteForm
+          doctors={data.doctors
+            .filter((item) => item.active && !item.linked_user_id)
+            .map((item) => ({ id: String(item.id), name: String(item.full_name) }))}
+        />
+      </div>
       <div className="grid gap-5 xl:grid-cols-2">
         <ModuleSection count={data.branches.length} description="Адреса, телефоны и часовые пояса." id="branches" title="Филиалы">
           {data.branches.length ? data.branches.map((item) => (
@@ -45,13 +55,19 @@ export default async function ClinicPage() {
           )) : <EmptyModule>Врачи ещё не добавлены.</EmptyModule>}
         </ModuleSection>
 
-        <ModuleSection count={data.staff.length} description="Сотрудники, роли и статус доступа." id="staff" title="Сотрудники">
+        <ModuleSection count={data.staff.length + data.invitations.length} description="Сотрудники, роли и статус доступа." id="staff" title="Сотрудники">
           {data.staff.length ? data.staff.map((item) => (
             <article className="grid grid-cols-[1fr_auto] gap-3 border-b border-border/70 px-5 py-4 last:border-0" key={String(item.id)}>
               <div><p className="font-semibold">{String(item.full_name)}</p><p className="mt-1 text-sm text-muted-foreground">{String(item.email)} · {String(item.role_names)}</p></div>
               <StatusPill status={String(item.status)} />
             </article>
           )) : <EmptyModule>Сотрудники ещё не приглашены.</EmptyModule>}
+          {data.invitations.map((item) => (
+            <article className="grid grid-cols-[1fr_auto] gap-3 border-t border-border/70 px-5 py-4" key={String(item.id)}>
+              <div><p className="font-semibold">{String(item.full_name)}</p><p className="mt-1 text-sm text-muted-foreground">{String(item.email)} · приглашение {String(item.role_code)}</p></div>
+              <StatusPill status="pending" />
+            </article>
+          ))}
         </ModuleSection>
 
         <ModuleSection count={data.services.length} description="Прайс, продолжительность и привязка к специальности." id="services" title="Услуги и цены">

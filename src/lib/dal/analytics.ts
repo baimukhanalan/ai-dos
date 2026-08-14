@@ -1,7 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/dal/auth";
+import { requireRoles } from "@/lib/dal/auth";
 import type {
   BookingOutcomeStats,
   LostDemandItem,
@@ -14,7 +14,7 @@ import type {
  * берётся как запасной вариант, когда у конкретной услуги цена не задана.
  */
 export async function getRevenueOverview() {
-  const user = await requireUser();
+  const user = await requireRoles(["clinic_admin", "operator"]);
   const sql = db();
 
   const [funnelRows, capturedRows, lostRows] = await Promise.all([
@@ -117,7 +117,7 @@ export async function getRevenueOverview() {
  * «не устроила цена», «не подошло время», «диалог оборвался».
  */
 export async function getBookingOutcomes(): Promise<{ stats: BookingOutcomeStats }> {
-  const user = await requireUser();
+  const user = await requireRoles(["clinic_admin", "operator"]);
   const sql = db();
 
   const [totalRows, reasonRows] = await Promise.all([
@@ -179,7 +179,7 @@ export async function getBookingOutcomes(): Promise<{ stats: BookingOutcomeStats
  * Реальные данные — из распознанных intent сообщений и языка диалогов за месяц.
  */
 export async function getDemandIntelligence() {
-  const user = await requireUser();
+  const user = await requireRoles(["clinic_admin", "operator"]);
   const sql = db();
   const [intentRows, languageRows] = await Promise.all([
     sql`
@@ -217,7 +217,7 @@ export async function getDemandIntelligence() {
  * из реальных строк: диалоги за месяц против диалогов с эскалацией.
  */
 export async function getAutonomyStats() {
-  const user = await requireUser();
+  const user = await requireRoles(["clinic_admin", "operator"]);
   const sql = db();
   const rows = (await sql`
     WITH context AS (SELECT timezone FROM tenants WHERE id = ${user.tenantId}),

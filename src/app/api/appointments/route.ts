@@ -1,5 +1,7 @@
 import { createAppointment, findAvailableSlots } from "@/lib/dal/operations";
 import { requireUser } from "@/lib/dal/auth";
+import { linkedDoctorId } from "@/lib/dal/doctor";
+import { AppError } from "@/lib/errors";
 import { apiError } from "@/lib/errors";
 import { appointmentSchema } from "@/lib/validation/operations";
 import { z } from "zod";
@@ -17,6 +19,12 @@ export async function GET(request: Request) {
       doctorId: url.searchParams.get("doctorId"),
       days: url.searchParams.get("days") || 7,
     });
+    if (user.role === "doctor") {
+      const ownDoctorId = await linkedDoctorId(user);
+      if (query.doctorId !== ownDoctorId) {
+        throw new AppError("doctor_scope_forbidden", 403, "Доступно только своё расписание.");
+      }
+    }
     const slots = await findAvailableSlots(
       user.tenantId,
       query.doctorId,

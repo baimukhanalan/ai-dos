@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
-import { requireRoles, requireUser } from "@/lib/dal/auth";
+import { requireRoles } from "@/lib/dal/auth";
 import type { KnowledgeRule } from "@/lib/ai/knowledge-rules";
 import type { z } from "zod";
 import type { knowledgeRuleSchema } from "@/lib/validation/knowledge-rule";
@@ -47,7 +47,7 @@ export async function loadKnowledgeRules(tenantId: string): Promise<KnowledgeRul
 }
 
 export async function getKnowledgeRulesForPortal() {
-  const user = await requireUser();
+  const user = await requireRoles(["clinic_admin", "operator"]);
   const sql = db();
   const rows = (await sql`
     SELECT id, category, scope, scope_ref, locale, title, body, keywords, priority, status, updated_at

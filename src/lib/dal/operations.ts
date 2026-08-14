@@ -507,7 +507,7 @@ export async function findAvailableSlots(
       SELECT id AS tenant_id, timezone
       FROM tenants
       WHERE id = ${tenantId} AND status = 'active'
-    ), candidates AS (
+    ), regular_candidates AS (
       SELECT
         (slot.local_start AT TIME ZONE context.timezone) AS starts_at,
         r.slot_minutes
@@ -540,6 +540,64 @@ export async function findAvailableSlots(
             )
           )
       )
+    ), exception_candidates AS (
+      SELECT
+        (slot.local_start AT TIME ZONE context.timezone) AS starts_at,
+        COALESCE(
+          (SELECT min(r.slot_minutes) FROM schedule_rules r
+            WHERE r.tenant_id = context.tenant_id
+              AND r.doctor_id = ${doctorId} AND r.active = true),
+          30
+        )::int AS slot_minutes
+      FROM context
+      JOIN schedule_exceptions e
+        ON e.tenant_id = context.tenant_id
+       AND e.doctor_id = ${doctorId}
+       AND e.available = true
+       AND e.exception_date BETWEEN
+         (now() AT TIME ZONE context.timezone)::date
+         AND (now() AT TIME ZONE context.timezone)::date + ${boundedDays - 1}::int
+       AND e.starts_at IS NOT NULL AND e.ends_at IS NOT NULL
+      CROSS JOIN LATERAL generate_series(
+        e.exception_date + e.starts_at,
+        e.exception_date + e.ends_at - make_interval(mins => COALESCE(
+          (SELECT min(r.slot_minutes) FROM schedule_rules r
+            WHERE r.tenant_id = context.tenant_id
+              AND r.doctor_id = ${doctorId} AND r.active = true),
+          30
+        )),
+        make_interval(mins => COALESCE(
+          (SELECT min(r.slot_minutes) FROM schedule_rules r
+            WHERE r.tenant_id = context.tenant_id
+              AND r.doctor_id = ${doctorId} AND r.active = true),
+          30
+        ))
+      ) AS slot(local_start)
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM schedule_exceptions blocked
+        WHERE blocked.tenant_id = context.tenant_id
+          AND blocked.doctor_id = ${doctorId}
+          AND blocked.exception_date = slot.local_start::date
+          AND blocked.available = false
+          AND (
+            blocked.starts_at IS NULL OR blocked.ends_at IS NULL OR (
+              slot.local_start::time < blocked.ends_at
+              AND (
+                slot.local_start + make_interval(mins => COALESCE(
+                  (SELECT min(r.slot_minutes) FROM schedule_rules r
+                    WHERE r.tenant_id = context.tenant_id
+                      AND r.doctor_id = ${doctorId} AND r.active = true),
+                  30
+                ))
+              )::time > blocked.starts_at
+            )
+          )
+      )
+    ), candidates AS (
+      SELECT * FROM regular_candidates
+      UNION
+      SELECT * FROM exception_candidates
     )
     SELECT starts_at, slot_minutes
     FROM candidates c

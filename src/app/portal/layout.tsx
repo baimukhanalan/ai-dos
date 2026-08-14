@@ -23,6 +23,13 @@ export default async function PortalLayout({
     .map((part) => part[0])
     .slice(0, 2)
     .join("");
+  const homeHref = user.role === "doctor" ? "/portal/doctor" : "/portal";
+  const roleLabel =
+    user.role === "clinic_admin"
+      ? "Администратор"
+      : user.role === "doctor"
+        ? "Врач"
+        : "Регистратор";
   return (
     <div
       className="min-h-screen bg-[#fbfaf6] md:grid md:grid-cols-[248px_minmax(0,1fr)] xl:grid-cols-[272px_minmax(0,1fr)]"
@@ -38,7 +45,7 @@ export default async function PortalLayout({
               src={branding.logoUrl}
             />
           ) : (
-            <Brand className="text-[28px]" href="/portal" />
+            <Brand className="text-[28px]" href={homeHref} />
           )}
         </div>
         <div className="border-b border-border/70 px-5 py-5">
@@ -49,7 +56,7 @@ export default async function PortalLayout({
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{user.fullName}</p>
               <p className="mt-1 truncate text-xs text-muted-foreground">
-                {user.role === "clinic_admin" ? "Администратор" : "Оператор"}
+                {roleLabel}
               </p>
             </div>
           </div>
@@ -62,14 +69,14 @@ export default async function PortalLayout({
             </p>
           </div>
         </div>
-        <PortalNav />
+        <PortalNav role={user.role} />
       </aside>
 
       <div className="min-w-0">
         <header className="sticky top-0 z-40 border-b border-border/80 bg-[#fbfaf6]/92 backdrop-blur-xl md:hidden">
           <div className="flex h-[76px] items-center gap-3 px-4 sm:px-7">
-            <Brand className="shrink-0 text-[26px]" href="/portal" />
-            <PortalNav variant="mobile" />
+            <Brand className="shrink-0 text-[26px]" href={homeHref} />
+            <PortalNav role={user.role} variant="mobile" />
           </div>
         </header>
         <main className="mx-auto max-w-[1480px] px-4 py-7 sm:px-7 lg:px-9 lg:py-9">

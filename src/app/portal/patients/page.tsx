@@ -5,12 +5,14 @@ import { UserCircle } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/portal/page-header";
 import { PatientCreateForm } from "@/components/portal/patient-create-form";
 import { getPatients } from "@/lib/dal/portal";
+import { requirePageRoles } from "@/lib/dal/auth";
 import { formatPhone } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Пациенты" };
 export const dynamic = "force-dynamic";
 
 export default async function PatientsPage() {
+  await requirePageRoles(["clinic_admin", "operator"]);
   const { patients } = await getPatients();
   return (
     <>
