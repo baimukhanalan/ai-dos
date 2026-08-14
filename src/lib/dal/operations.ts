@@ -383,10 +383,10 @@ export async function resolvePublicTenant() {
   }
 
   const rows = (await sql`
-    SELECT id, name, slug FROM tenants
+    SELECT id, name, slug, timezone FROM tenants
     WHERE slug = ${slug} AND status = 'active'
     LIMIT 1
-  `) as Array<{ id: string; name: string; slug: string }>;
+  `) as Array<{ id: string; name: string; slug: string; timezone: string }>;
 
   if (!rows[0]) {
     throw new AppError(

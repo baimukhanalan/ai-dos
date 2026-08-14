@@ -54,6 +54,12 @@ export function SiteHeader() {
         <div className="flex items-center gap-2.5 sm:gap-3.5">
           <LanguageSwitcher tone="light" />
           <Link
+            className="hidden text-[13px] font-semibold text-[var(--primary)] transition-opacity hover:opacity-70 lg:block"
+            href="/assistant"
+          >
+            {t.cta.patient}
+          </Link>
+          <Link
             className="hidden text-[13px] font-medium transition-colors hover:text-[var(--primary)] sm:block"
             href="/login"
             style={{ color: "var(--ink-2)" }}

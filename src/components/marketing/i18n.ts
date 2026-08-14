@@ -21,7 +21,7 @@ type DialogueLine = { who: string; text: string; lang: string };
 
 export type Dictionary = {
   nav: { evening: string; call: string; voice: string; limits: string };
-  cta: { login: string; create: string; how: string };
+  cta: { login: string; create: string; how: string; patient: string };
   hero: {
     eyebrow: string;
     titleTop: string;
@@ -72,7 +72,7 @@ export type Dictionary = {
 
 const ru: Dictionary = {
   nav: { evening: "Вечер", call: "Звонок", voice: "Голос", limits: "Границы" },
-  cta: { login: "Войти", create: "Создать клинику", how: "Как это работает" },
+  cta: { login: "Войти", create: "Создать клинику", how: "Как это работает", patient: "Записаться в клинику" },
   hero: {
     eyebrow: "AI-регистратура · Казахстан",
     titleTop: "Клиника закрывается в семь.",
@@ -255,7 +255,7 @@ const ru: Dictionary = {
 
 const kk: Dictionary = {
   nav: { evening: "Кеш", call: "Қоңырау", voice: "Дауыс", limits: "Шектер" },
-  cta: { login: "Кіру", create: "Клиника құру", how: "Қалай жұмыс істейді" },
+  cta: { login: "Кіру", create: "Клиника құру", how: "Қалай жұмыс істейді", patient: "Клиникаға жазылу" },
   hero: {
     eyebrow: "AI-тіркеу · Қазақстан",
     titleTop: "Клиника жетіде жабылады.",
@@ -438,7 +438,7 @@ const kk: Dictionary = {
 
 const en: Dictionary = {
   nav: { evening: "Evening", call: "The call", voice: "Voice", limits: "Limits" },
-  cta: { login: "Log in", create: "Create clinic", how: "How it works" },
+  cta: { login: "Log in", create: "Create clinic", how: "How it works", patient: "Book a clinic visit" },
   hero: {
     eyebrow: "AI front desk · Kazakhstan",
     titleTop: "The clinic closes at seven.",

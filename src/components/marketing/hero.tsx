@@ -39,10 +39,10 @@ export function Hero() {
             </Link>
             <Link
               className="inline-flex h-14 items-center justify-center rounded-full px-8 text-sm font-semibold tracking-wide transition hover:-translate-y-0.5"
-              href="#evening"
+              href="/assistant"
               style={{ border: "1px solid var(--rule-strong)", color: "var(--ink)" }}
             >
-              {t.cta.how}
+              {t.cta.patient}
             </Link>
           </div>
         </div>
