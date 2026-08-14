@@ -98,6 +98,21 @@ export const geminiLiveTools: Tool[] = [
         },
       },
       {
+        name: "patient_appointment_turn",
+        description:
+          "List, cancel or reschedule an identified patient's existing appointments. Pass the patient's exact words and the verified patientId on every turn. The tool asks for appointment selection, real slots and explicit confirmation. Never claim a change unless outcome is 'completed'.",
+        parametersJsonSchema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            message: { type: "string", minLength: 1, maxLength: 1000 },
+            patientId: { type: "string", format: "uuid" },
+            language: { type: "string", enum: ["ru", "kk", "en"] },
+          },
+          required: ["message", "patientId"],
+        },
+      },
+      {
         name: "create_callback_request",
         description:
           "Create a callback task for clinic staff only after the patient explicitly confirms their phone number and asks for a callback.",

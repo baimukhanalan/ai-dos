@@ -9,6 +9,7 @@ import {
   phoneNumberSchema,
   voiceSessionSchema,
 } from "@/lib/validation/voice";
+import { isVerifiedVoicePatient } from "@/lib/voice/patient-context";
 
 describe("voice safety and realtime configuration", () => {
   it("keeps the medical and identity guardrails in the receptionist prompt", () => {
@@ -40,6 +41,8 @@ describe("voice safety and realtime configuration", () => {
     expect(names.indexOf("verify_patient_identity")).toBeLessThan(
       names.indexOf("booking_turn"),
     );
+    expect(names).toContain("patient_appointment_turn");
+    expect(prompt).toContain("Просмотр существующих записей, отмену и перенос");
     expect(names).toContain("create_callback_request");
   });
 
@@ -60,6 +63,21 @@ describe("voice safety and realtime configuration", () => {
   it("requires explicit recording consent and a supported model", () => {
     expect(voiceSessionSchema.safeParse({ model: "unknown", voice: "marin", language: "ru", speed: 1, recordingConsent: true }).success).toBe(false);
     expect(voiceSessionSchema.safeParse({ model: "gpt-realtime-2.1-mini", voice: "marin", language: "ru", speed: 1, recordingConsent: false }).success).toBe(false);
+  });
+
+  it("binds voice mutations to the patient verified in the same session", () => {
+    const patientId = "11111111-1111-4111-8111-111111111111";
+    expect(isVerifiedVoicePatient(null, patientId)).toBe(false);
+    expect(isVerifiedVoicePatient(patientId, undefined)).toBe(true);
+    expect(isVerifiedVoicePatient(patientId, undefined, true)).toBe(false);
+    expect(isVerifiedVoicePatient(patientId, patientId, true)).toBe(true);
+    expect(
+      isVerifiedVoicePatient(
+        patientId,
+        "22222222-2222-4222-8222-222222222222",
+        true,
+      ),
+    ).toBe(false);
   });
 
   it("accepts Gemini Live voices only with explicit recording consent", () => {

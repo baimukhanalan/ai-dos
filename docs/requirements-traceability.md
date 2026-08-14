@@ -28,7 +28,7 @@
 | 10–11 | идентификация и новый пациент | patients API/UI; ИИН минимизирован и не отправляется модели; Patient Identity (`/api/patients/verify`) — телефон + фактор, по одному имени не находит |
 | 12–13 | DAMUMED и другие МИС | официальный adapter boundary, sandbox, integration health |
 | 14–17 | врач, жалоба, расписание, запись | clinic directory, safe routing prompt, slots, idempotent booking |
-| 18–19 | перенос и отмена | PATCH appointment, подтверждение, history/outbox/audit |
+| 18–19 | перенос и отмена | общий tenant-aware flow для портала, web, Gemini voice и MCP; идентификация пациента, выбор записи/слота, явное подтверждение, history/outbox/audit |
 | 20–21 | лист ожидания и свободные окна | воркер подбора слотов, срок жизни предложения, приём/отказ из портала без двойной записи |
 | 22–24 | срочные случаи, человек, callback | emergency policy, urgent/task/callback models и UI; Escalation Engine с готовой карточкой (intent, причина, сводка, маскированный телефон) |
 | 25–26 | напоминания и no-show | напоминание планируется на «за сутки до визита»; no-show воркер закрывает визит, ставит задачу сотруднику и уведомление пациенту |

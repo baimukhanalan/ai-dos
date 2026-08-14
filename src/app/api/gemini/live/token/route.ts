@@ -140,13 +140,23 @@ export async function POST(request: Request) {
     }
 
     const sessionId = randomUUID();
+    const conversationId = randomUUID();
     await sql.transaction([
       sql`
+        INSERT INTO conversations (id, tenant_id, channel, language, subject)
+        VALUES (
+          ${conversationId}, ${user.tenantId}, 'phone',
+          ${input.language === "auto" ? "ru" : input.language},
+          'Голосовой разговор AI Dos'
+        )
+      `,
+      sql`
         INSERT INTO voice_sessions (
-          id, tenant_id, user_id, model, voice, requested_language, status
+          id, tenant_id, user_id, model, voice, requested_language, status,
+          conversation_id
         ) VALUES (
           ${sessionId}, ${user.tenantId}, ${user.id}, ${geminiLiveModel},
-          ${input.voice}, ${input.language}, 'created'
+          ${input.voice}, ${input.language}, 'created', ${conversationId}
         )
       `,
       sql`

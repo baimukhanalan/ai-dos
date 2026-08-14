@@ -3,6 +3,7 @@ import { classifyEscalation, detectIntent } from "@/lib/ai/escalation";
 import { loadClinicAiContext } from "@/lib/ai/clinic-context";
 import { safeAssistantReply } from "@/lib/ai/safe-assistant";
 import { runBookingTurnForTenant } from "@/lib/dal/booking";
+import { runPatientAppointmentTurnForTenant } from "@/lib/dal/patient-appointments";
 import { matchDoctor, type DoctorOption } from "@/lib/booking/flow";
 import { registerPublicPatient, verifyPatientIdentity } from "@/lib/dal/identity";
 import { recordEscalation } from "@/lib/dal/escalations";
@@ -48,12 +49,12 @@ async function readBody(request: Request) {
 
 function localizedIdentityPrompt(locale: "ru" | "kk" | "en") {
   if (locale === "kk") {
-    return "Жазылуды жалғастыру үшін жеке басыңызды растаңыз: телефон нөмірі және тегіңіз немесе туған күніңіз қажет.";
+    return "Жазбамен әрекетті жалғастыру үшін жеке басыңызды растаңыз: телефон нөмірі және тегіңіз немесе туған күніңіз қажет.";
   }
   if (locale === "en") {
-    return "To continue booking, verify your identity with your phone number and either your surname or date of birth.";
+    return "To continue with your appointment, verify your identity with your phone number and either your surname or date of birth.";
   }
-  return "Чтобы продолжить запись, подтвердите личность: укажите номер телефона и фамилию или дату рождения.";
+  return "Чтобы продолжить действие с записью, подтвердите личность: укажите номер телефона и фамилию или дату рождения.";
 }
 
 function localizedNotFound(locale: "ru" | "kk" | "en") {
@@ -328,12 +329,72 @@ export async function POST(request: Request) {
       });
     }
 
-    const openBooking = await sql`
+    const [openBooking, openAppointmentAction] = await Promise.all([
+      sql`
       SELECT id FROM booking_sessions
       WHERE tenant_id = ${tenant.id} AND conversation_id = ${session.conversationId}
         AND outcome IS NULL
       LIMIT 1
-    `;
+      `,
+      sql`
+        SELECT id FROM patient_appointment_actions
+        WHERE tenant_id = ${tenant.id} AND conversation_id = ${session.conversationId}
+          AND outcome IS NULL AND expires_at > now()
+        LIMIT 1
+      `,
+    ]);
+    const intent = detectIntent(input.message);
+    const appointmentActionIntent = ["cancel", "reschedule", "appointment_info"].includes(intent);
+    if ((appointmentActionIntent || openAppointmentAction[0]) && !verified) {
+      const reply = localizedIdentityPrompt(input.locale);
+      await sql`
+        INSERT INTO messages (tenant_id, conversation_id, sender_type, content, model, surface)
+        VALUES (${tenant.id}, ${session.conversationId}, 'assistant', ${reply},
+          'ai-dos-public-identity', 'patient_conversation')
+      `;
+      return Response.json(
+        {
+          ok: true,
+          data: {
+            clinic: tenant.name,
+            conversationId: session.conversationId,
+            reply,
+            verified: false,
+            requiresIdentity: true,
+            canRegister: false,
+            stage: null,
+            outcome: null,
+            slots: [],
+          },
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    if ((appointmentActionIntent || openAppointmentAction[0]) && patientId) {
+      const turn = await runPatientAppointmentTurnForTenant(tenant.id, {
+        message: input.message,
+        patientId,
+        conversationId: session.conversationId,
+        language: input.locale,
+        channel: "web",
+      });
+      return Response.json(
+        {
+          ok: true,
+          data: {
+            clinic: tenant.name,
+            conversationId: session.conversationId,
+            reply: turn.reply,
+            verified: true,
+            requiresIdentity: false,
+            stage: turn.stage,
+            outcome: turn.outcome,
+            slots: [],
+          },
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
     const wantsCallback = isCallbackRequest(input.message);
     if (wantsCallback && !verified) {
       const reply = localizedIdentityPrompt(input.locale);
@@ -405,7 +466,6 @@ export async function POST(request: Request) {
         },
       });
     }
-    const intent = detectIntent(input.message);
     const wantsBooking =
       intent === "book" &&
       isExplicitBookingRequest(input.message);

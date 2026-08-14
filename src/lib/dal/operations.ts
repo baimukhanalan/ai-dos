@@ -60,11 +60,30 @@ export async function changeAppointment(
   input: AppointmentChangeInput,
 ) {
   const user = await requireRoles(["clinic_admin", "operator"]);
+  return changeAppointmentForTenant(
+    user.tenantId,
+    user.id,
+    appointmentId,
+    input,
+    { source: "portal" },
+  );
+}
+
+export async function changeAppointmentForTenant(
+  tenantId: string,
+  actorUserId: string | null,
+  appointmentId: string,
+  input: AppointmentChangeInput,
+  options: {
+    patientId?: string | null;
+    source?: "portal" | "web" | "phone" | "whatsapp" | "telegram" | "mcp";
+  } = {},
+) {
   const sql = db();
   const scope = `appointment.${input.action}`;
   const existing = (await sql`
     SELECT response_body FROM idempotency_keys
-    WHERE tenant_id = ${user.tenantId} AND scope = ${scope}
+    WHERE tenant_id = ${tenantId} AND scope = ${scope}
       AND key = ${input.idempotencyKey} AND expires_at > now()
     LIMIT 1
   `) as Array<{ response_body: Record<string, unknown> }>;
@@ -73,7 +92,8 @@ export async function changeAppointment(
   const appointments = (await sql`
     SELECT id, patient_id, doctor_id, service_id, status
     FROM appointments
-    WHERE id = ${appointmentId} AND tenant_id = ${user.tenantId}
+    WHERE id = ${appointmentId} AND tenant_id = ${tenantId}
+      AND (${options.patientId ?? null}::uuid IS NULL OR patient_id = ${options.patientId ?? null}::uuid)
     LIMIT 1
   `) as Array<{
     id: string;
@@ -91,19 +111,19 @@ export async function changeAppointment(
   if (input.action === "cancel") {
     const response = { id: appointmentId, status: "cancelled" };
     const [updated] = await sql.transaction([
-      sql`UPDATE appointments SET status = 'cancelled', updated_at = now() WHERE id = ${appointmentId} AND tenant_id = ${user.tenantId} AND status IN ('held', 'confirmed') RETURNING id`,
-      sql`INSERT INTO appointment_history (tenant_id, appointment_id, from_status, to_status, changed_by, reason) VALUES (${user.tenantId}, ${appointmentId}, ${appointment.status}, 'cancelled', ${user.id}, ${input.reason})`,
-      sql`INSERT INTO idempotency_keys (tenant_id, key, scope, response_status, response_body) VALUES (${user.tenantId}, ${input.idempotencyKey}, ${scope}, 200, ${JSON.stringify(response)}::jsonb)`,
-      sql`INSERT INTO outbox_events (tenant_id, topic, aggregate_type, aggregate_id, payload) VALUES (${user.tenantId}, 'appointment.cancelled', 'appointment', ${appointmentId}, ${JSON.stringify({ reason: input.reason })}::jsonb)`,
-      sql`INSERT INTO audit_events (tenant_id, actor_user_id, action, resource_type, resource_id, metadata) VALUES (${user.tenantId}, ${user.id}, 'appointment.cancelled', 'appointment', ${appointmentId}, ${JSON.stringify({ reason: input.reason })}::jsonb)`,
+      sql`UPDATE appointments SET status = 'cancelled', updated_at = now() WHERE id = ${appointmentId} AND tenant_id = ${tenantId} AND status IN ('held', 'confirmed') RETURNING id`,
+      sql`INSERT INTO appointment_history (tenant_id, appointment_id, from_status, to_status, changed_by, reason) VALUES (${tenantId}, ${appointmentId}, ${appointment.status}, 'cancelled', ${actorUserId}, ${input.reason})`,
+      sql`INSERT INTO idempotency_keys (tenant_id, key, scope, response_status, response_body) VALUES (${tenantId}, ${input.idempotencyKey}, ${scope}, 200, ${JSON.stringify(response)}::jsonb)`,
+      sql`INSERT INTO outbox_events (tenant_id, topic, aggregate_type, aggregate_id, payload) VALUES (${tenantId}, 'appointment.cancelled', 'appointment', ${appointmentId}, ${JSON.stringify({ reason: input.reason, source: options.source ?? "portal" })}::jsonb)`,
+      sql`INSERT INTO audit_events (tenant_id, actor_user_id, action, resource_type, resource_id, metadata) VALUES (${tenantId}, ${actorUserId}, 'appointment.cancelled', 'appointment', ${appointmentId}, ${JSON.stringify({ reason: input.reason, source: options.source ?? "portal" })}::jsonb)`,
     ]);
     if (!updated[0]) throw new AppError("appointment_changed", 409, "Запись уже была изменена другим сотрудником.");
     return response;
   }
 
   const replacement = await createAppointmentForTenant(
-    user.tenantId,
-    user.id,
+    tenantId,
+    actorUserId,
     {
       patientId: appointment.patient_id,
       doctorId: appointment.doctor_id,
@@ -112,19 +132,19 @@ export async function changeAppointment(
       reason: input.reason,
       idempotencyKey: `${input.idempotencyKey}:new`,
     },
-    "portal",
+    options.source ?? "portal",
   );
   const replacementId = String(replacement.id);
   const response = { id: appointmentId, status: "cancelled", replacement };
   const [updated] = await sql.transaction([
-    sql`UPDATE appointments SET status = 'cancelled', updated_at = now() WHERE id = ${appointmentId} AND tenant_id = ${user.tenantId} AND status IN ('held', 'confirmed') RETURNING id`,
-    sql`INSERT INTO appointment_history (tenant_id, appointment_id, from_status, to_status, changed_by, reason) VALUES (${user.tenantId}, ${appointmentId}, ${appointment.status}, 'cancelled', ${user.id}, ${`Перенос: ${input.reason}`})`,
-    sql`INSERT INTO idempotency_keys (tenant_id, key, scope, response_status, response_body) VALUES (${user.tenantId}, ${input.idempotencyKey}, ${scope}, 200, ${JSON.stringify(response)}::jsonb)`,
-    sql`INSERT INTO outbox_events (tenant_id, topic, aggregate_type, aggregate_id, payload) VALUES (${user.tenantId}, 'appointment.rescheduled', 'appointment', ${appointmentId}, ${JSON.stringify({ replacementId, reason: input.reason })}::jsonb)`,
-    sql`INSERT INTO audit_events (tenant_id, actor_user_id, action, resource_type, resource_id, metadata) VALUES (${user.tenantId}, ${user.id}, 'appointment.rescheduled', 'appointment', ${appointmentId}, ${JSON.stringify({ replacementId })}::jsonb)`,
+    sql`UPDATE appointments SET status = 'cancelled', updated_at = now() WHERE id = ${appointmentId} AND tenant_id = ${tenantId} AND status IN ('held', 'confirmed') RETURNING id`,
+    sql`INSERT INTO appointment_history (tenant_id, appointment_id, from_status, to_status, changed_by, reason) VALUES (${tenantId}, ${appointmentId}, ${appointment.status}, 'cancelled', ${actorUserId}, ${`Перенос: ${input.reason}`})`,
+    sql`INSERT INTO idempotency_keys (tenant_id, key, scope, response_status, response_body) VALUES (${tenantId}, ${input.idempotencyKey}, ${scope}, 200, ${JSON.stringify(response)}::jsonb)`,
+    sql`INSERT INTO outbox_events (tenant_id, topic, aggregate_type, aggregate_id, payload) VALUES (${tenantId}, 'appointment.rescheduled', 'appointment', ${appointmentId}, ${JSON.stringify({ replacementId, reason: input.reason, source: options.source ?? "portal" })}::jsonb)`,
+    sql`INSERT INTO audit_events (tenant_id, actor_user_id, action, resource_type, resource_id, metadata) VALUES (${tenantId}, ${actorUserId}, 'appointment.rescheduled', 'appointment', ${appointmentId}, ${JSON.stringify({ replacementId, source: options.source ?? "portal" })}::jsonb)`,
   ]);
   if (!updated[0]) {
-    await sql`UPDATE appointments SET status = 'cancelled', updated_at = now() WHERE id = ${replacementId} AND tenant_id = ${user.tenantId}`;
+    await sql`UPDATE appointments SET status = 'cancelled', updated_at = now() WHERE id = ${replacementId} AND tenant_id = ${tenantId}`;
     throw new AppError("appointment_changed", 409, "Запись уже была изменена другим сотрудником.");
   }
   return response;

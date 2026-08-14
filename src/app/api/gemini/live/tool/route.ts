@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { requireUser } from "@/lib/dal/auth";
 import { runBookingTurnForTenant } from "@/lib/dal/booking";
+import { runPatientAppointmentTurnForTenant } from "@/lib/dal/patient-appointments";
 import {
   createCallbackForTenant,
   findAvailableSlots,
@@ -16,6 +17,7 @@ import { db } from "@/lib/db";
 import { apiError, AppError } from "@/lib/errors";
 import { callbackSchema } from "@/lib/validation/operations";
 import { verifyPatientIdentity } from "@/lib/dal/identity";
+import { isVerifiedVoicePatient } from "@/lib/voice/patient-context";
 
 export const runtime = "nodejs";
 
@@ -27,6 +29,7 @@ const toolNames = [
   "list_clinic_branches",
   "verify_patient_identity",
   "booking_turn",
+  "patient_appointment_turn",
   "create_callback_request",
 ] as const;
 
@@ -58,6 +61,12 @@ const slotsSchema = z.object({
 const bookingToolSchema = z.object({
   message: z.string().trim().min(1).max(1000),
   patientId: z.string().uuid().optional(),
+});
+
+const patientAppointmentToolSchema = z.object({
+  message: z.string().trim().min(1).max(1000),
+  patientId: z.string().uuid(),
+  language: z.enum(["ru", "kk", "en"]).optional(),
 });
 
 const identityToolSchema = z
@@ -97,8 +106,8 @@ export async function POST(request: Request) {
     const user = await requireUser();
     const input = requestSchema.parse(await request.json());
     const sql = db();
-    const sessions = await sql`
-      SELECT id
+    const sessions = (await sql`
+      SELECT id, patient_id, conversation_id, requested_language
       FROM voice_sessions
       WHERE id = ${input.sessionId}
         AND tenant_id = ${user.tenantId}
@@ -106,8 +115,14 @@ export async function POST(request: Request) {
         AND status IN ('created', 'connected')
         AND started_at > now() - interval '35 minutes'
       LIMIT 1
-    `;
-    if (!sessions[0]) {
+    `) as Array<{
+      id: string;
+      patient_id: string | null;
+      conversation_id: string | null;
+      requested_language: string;
+    }>;
+    const session = sessions[0];
+    if (!session) {
       throw new AppError(
         "voice_session_not_found",
         404,
@@ -173,20 +188,62 @@ export async function POST(request: Request) {
       }
       case "verify_patient_identity": {
         const args = identityToolSchema.parse(input.args);
-        data = await verifyPatientIdentity(sql, user.tenantId, {
+        const identity = await verifyPatientIdentity(sql, user.tenantId, {
           phone: args.phone,
           fullName: args.surname,
           birthDate: args.birthDate,
         });
+        data = identity;
+        if (identity.status === "verified") {
+          await sql`
+            UPDATE voice_sessions
+            SET patient_id = ${identity.patientId}, patient_verified_at = now()
+            WHERE id = ${input.sessionId} AND tenant_id = ${user.tenantId}
+          `;
+          session.patient_id = identity.patientId;
+        }
         break;
       }
       case "booking_turn": {
         const args = bookingToolSchema.parse(input.args);
+        if (!isVerifiedVoicePatient(session.patient_id, args.patientId)) {
+          throw new AppError(
+            "voice_patient_not_verified",
+            403,
+            "Сначала подтвердите личность пациента в этой голосовой сессии.",
+          );
+        }
         // Ход ведёт тот же движок, что и веб-канал, поэтому исход и причина
         // отказа попадают в общую аналитику независимо от канала.
         data = await runBookingTurnForTenant(user.tenantId, user.id, {
           message: args.message,
-          patientId: args.patientId ?? null,
+          patientId: session.patient_id!,
+          conversationId: session.conversation_id,
+          channel: "phone",
+        });
+        break;
+      }
+      case "patient_appointment_turn": {
+        const args = patientAppointmentToolSchema.parse(input.args);
+        if (
+          !isVerifiedVoicePatient(session.patient_id, args.patientId, true)
+          || !session.conversation_id
+        ) {
+          throw new AppError(
+            "voice_patient_not_verified",
+            403,
+            "Сначала подтвердите личность пациента в этой голосовой сессии.",
+          );
+        }
+        data = await runPatientAppointmentTurnForTenant(user.tenantId, {
+          message: args.message,
+          patientId: session.patient_id!,
+          conversationId: session.conversation_id,
+          language:
+            args.language
+            ?? (session.requested_language === "kk" || session.requested_language === "en"
+              ? session.requested_language
+              : "ru"),
           channel: "phone",
         });
         break;

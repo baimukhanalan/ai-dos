@@ -1,5 +1,6 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
@@ -10,6 +11,7 @@ import {
   resolvePublicTenant,
 } from "@/lib/dal/operations";
 import { runBookingTurnForTenant } from "@/lib/dal/booking";
+import { runPatientAppointmentTurnForTenant } from "@/lib/dal/patient-appointments";
 import { verifyPatientIdentity } from "@/lib/dal/identity";
 import { identityPrompt } from "@/lib/ai/identity";
 import { detectLanguage } from "@/lib/ai/language";
@@ -370,6 +372,93 @@ export function createAiDosMcpServer() {
         outcome: turn.outcome,
         lostReason: turn.lostReason,
         slots: turn.offeredSlots,
+      });
+    },
+  );
+
+  server.registerTool(
+    "patient_appointment_turn",
+    {
+      title: "Мои записи",
+      description:
+        "List, cancel or reschedule an existing appointment. Identity is mandatory on every call. Pass conversationId returned by the previous turn to preserve selection and explicit confirmation. Never claim a change unless outcome is completed.",
+      inputSchema: {
+        message: z.string().trim().min(1).max(1000),
+        phone: z.string().trim().min(7).max(24),
+        surname: z.string().trim().min(2).max(120).optional(),
+        birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        conversationId: z.string().uuid().optional(),
+        language: z.enum(["ru", "kk", "en"]).optional(),
+      },
+      outputSchema: {
+        title: z.string(),
+        clinic: z.string(),
+        conversationId: z.string().uuid().nullable(),
+        reply: z.string(),
+        action: z.enum(["appointment_info", "cancel", "reschedule"]),
+        stage: z.string().nullable(),
+        outcome: z.string().nullable(),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        openWorldHint: false,
+        idempotentHint: false,
+      },
+      _meta: toolMeta("Проверяю запись…", "Ответ готов"),
+    },
+    async ({ message, phone, surname, birthDate, conversationId, language }) => {
+      const tenant = await resolvePublicTenant();
+      const sql = db();
+      const identity = await verifyPatientIdentity(sql, tenant.id, {
+        phone,
+        fullName: surname,
+        birthDate,
+      });
+      if (identity.status !== "verified") {
+        return textResult({
+          title: "Подтверждение личности",
+          clinic: tenant.name,
+          conversationId: null,
+          reply: identityPrompt(language ?? detectLanguage(message)),
+          action: "appointment_info" as const,
+          stage: null,
+          outcome: null,
+        });
+      }
+
+      let nextConversationId = conversationId;
+      if (nextConversationId) {
+        const owned = await sql`
+          SELECT id FROM conversations
+          WHERE id = ${nextConversationId} AND tenant_id = ${tenant.id}
+            AND patient_id = ${identity.patientId}
+          LIMIT 1
+        `;
+        if (!owned[0]) nextConversationId = undefined;
+      }
+      if (!nextConversationId) {
+        nextConversationId = randomUUID();
+        await sql`
+          INSERT INTO conversations (id, tenant_id, patient_id, channel, language, subject)
+          VALUES (
+            ${nextConversationId}, ${tenant.id}, ${identity.patientId}, 'mcp',
+            ${language ?? detectLanguage(message)}, 'Управление записью через MCP'
+          )
+        `;
+      }
+      const turn = await runPatientAppointmentTurnForTenant(tenant.id, {
+        message,
+        patientId: identity.patientId,
+        conversationId: nextConversationId,
+        language: language ?? detectLanguage(message),
+        channel: "mcp",
+      });
+      return textResult({
+        title: "Мои записи",
+        clinic: tenant.name,
+        conversationId: nextConversationId,
+        ...turn,
       });
     },
   );
