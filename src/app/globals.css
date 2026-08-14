@@ -171,6 +171,18 @@
 }
 
 @layer utilities {
+  .report-input {
+    margin-top: 0.25rem;
+    width: 100%;
+    border-radius: 0.5625rem;
+    border: 1px solid var(--border);
+    background: white;
+    padding: 0.5rem 0.75rem;
+    color: var(--foreground);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
   .font-editorial {
     font-family: Georgia, "Times New Roman", serif;
     font-weight: 400;

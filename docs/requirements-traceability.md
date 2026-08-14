@@ -17,7 +17,7 @@
 | 9. Waitlist и callback | готово | воркер подбирает освободившийся слот, держит предложение до срока и возвращает запись в очередь; автообзвон требует номера |
 | 10. Scenario Builder | готово | визуальный редактор графа, типизированные блоки и tools, safety-проверки, симуляция success/fallback, optimistic locking, неизменяемые опубликованные версии, publish и rollback |
 | 11. Campaigns | готово к подключению | consent-aware конструктор, live audience preview, channel/locale/message, quiet hours, daily/period/frequency limits, дедупликация, schedule, delivery queue, results, stop и одноразовый opt-out со снятием consent; фактическая внешняя отправка включается только credentials провайдера, outbound voice executor ждёт телефонию |
-| 12. Patient 360, analytics и hardening | готово | `/portal/patients/[id]`: tenant-scoped единая история, поиск и фильтры, отдельные версионированные согласия с отзывом и аудитом; отчёты, RLS, rate limits, health, feature flags, usage, тесты |
+| 12. Patient 360, analytics и hardening | готово | `/portal/patients/[id]`: tenant-scoped единая история, поиск и фильтры, отдельные версионированные согласия с отзывом и аудитом; `/portal/reports`: период и восемь операционных срезов, дневная динамика, спрос, эффективность, CSV и настоящий XLSX; RLS, rate limits, health, feature flags, usage, тесты |
 
 ## 62 раздела требований
 
@@ -35,7 +35,7 @@
 | 27–29 | knowledge, сценарии, кампании | статьи + структурированный Clinic Knowledge Engine (`knowledge_rules`: category/scope/keywords) с адресным матчингом под intent; рабочие visual builders для сценариев и consent-aware кампаний; внешние каналы включаются только официальными credentials |
 | 30–31 | история и резюме звонка | Patient 360 объединяет разговоры, звонки, записи, уведомления, callback, лист ожидания, кампании, задачи и согласия; поиск/фильтры работают в UI, телефон и ИИН маскируются; завершённый Gemini Live тест сохраняет маскированное резюме и следующий операционный шаг |
 | 32–35 | панели регистратора, врача, admin, superadmin | единый role-aware portal; clinic admin и operations готовы, глобальный SaaS-owner UI ограничен платформенной ролью |
-| 36–38 | аналитика, уведомления, телефония | reports с выручкой (завершённые визиты × цена), воронкой, автономией AI, распределением intent и языков; notification pipeline; SIP number registry/webhook |
+| 36–38 | аналитика, уведомления, телефония | tenant-scoped reports с фильтрами по периоду, филиалу, врачу, специальности, языку, каналу, результату и сценарию; KPI звонков/записей, дневная динамика, спрос и операционная эффективность; безопасный CSV и настоящий XLSX export; notification pipeline; SIP number registry/webhook |
 | 39–44 | AI safety, consent, security, RBAC, audit | server-only keys, masked identifiers, отдельные цели consent (обработка, запись звонка, сообщения, WhatsApp, исходящие звонки, маркетинг), источник/дата/версия/отзыв, immutable history, отдельные permissions и audit |
 | 45–50 | архитектура, стек, БД, API, events, jobs | Next/Vercel/Postgres, route handlers, outbox, cron |
 | 51–52 | observability и resilience | health, integration requests/errors, retries/idempotency/safe mode |
