@@ -1,132 +1,138 @@
+<div align="center">
+
 # AI Dos
 
-AI-регистратура для клиник Казахстана: лендинг, защищённый портал, живая PostgreSQL, мультиязычный голос в реальном времени, SIP-телефония, пациенты, расписание, автоматизация, отчёты и MCP-интеграция.
+### The AI receptionist for clinics — answers every call 24/7 in Russian, Kazakh & English
 
-## Возможности
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com/)
 
-- Изолированные клиники и роли сотрудников в PostgreSQL.
-- Регистрация, вход и защищённые HttpOnly-сессии.
-- Пациенты, врачи, услуги, расписание и защита от двойной записи.
-- Публичный чат пациента `/assistant`: реальные врачи и график клиники, свободные слоты из PostgreSQL, RU/KK/EN, подтверждение существующего пациента и регистрация нового с явным согласием перед записью.
-- Просмотр, отмена и перенос будущих записей через единый подтверждаемый сценарий для web-чата, Gemini Live и MCP; модель не может подменить `patientId`, подтверждённый в голосовой сессии.
-- AI-помощник на OpenAI API без передачи ключа в браузер и безопасный локальный режим при недоступном провайдере.
-- MCP tools для услуг, врачей, свободных слотов и обратного звонка.
-- Голосовая лаборатория Gemini Live: автоматическое определение языка, barge-in, измерение задержки, локальная запись разговора и выгрузка WebM.
-- Входящие звонки через OpenAI Realtime SIP: номер клиники, проверенный webhook, журнал звонков и безопасное отклонение неизвестных номеров.
-- Операционный центр: звонки, callback, лист ожидания, срочные запросы, задачи и уведомления.
-- Доставка уведомлений: очередь с повторами и backoff, рендер шаблонов на RU/KK/EN, журнал попыток провайдера и честный статус `blocked`, пока канал не подключён.
-- Воркеры листа ожидания и no-show: освободившийся слот сам находит пациента, пропущенный визит закрывается и превращается в задачу сотруднику.
-- Тариф и white-label: лимиты плана против фактического потребления, название, цвета, логотип и контакты клиники в портале и в текстах пациентам.
-- Конструктор сценариев, кампании, шаблоны, outbox и административный аудит.
-- Аудит действий, outbox событий и ежедневные напоминания через Vercel Cron.
-- Безопасный sandbox-адаптер; DAMUMED включается только после получения официального API.
+[![Live Demo](https://img.shields.io/badge/Live_Demo-ai--dos--sage.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://ai-dos-sage.vercel.app)
 
-## Локальный запуск
+</div>
 
-Требуется Node.js 20+ и PostgreSQL.
+## 📖 About
+
+**AI Dos** is an AI-powered registry and receptionist for clinics in Kazakhstan. It pairs a public marketing landing page with a secure staff portal and a patient-facing assistant, so a clinic can answer calls and chats around the clock, book and reschedule appointments, and keep operations moving — without a human picking up every call.
+
+Every clinic is isolated by tenant in a live PostgreSQL database, with role-based staff accounts, HttpOnly session auth, double-booking protection, and an action audit trail. The assistant speaks **Russian, Kazakh, and English**, confirms the patient before touching any booking, and falls back to a safe local runtime when no external LLM is available.
+
+## ✨ Features
+
+- 🎙️ **24/7 voice answering** — inbound calls over OpenAI Realtime SIP: a verified webhook, a per-clinic number, a call log, and safe rejection of unknown numbers.
+- 🌐 **Multilingual, by default** — Russian / Kazakh / English across the patient chat, voice sessions, and notification templates, with automatic language detection.
+- ☎️ **SIP telephony & voice lab** — a Gemini Live voice lab with barge-in (server VAD), latency measurement, local recording, and WebM export; audio never leaves the browser.
+- 📅 **Patient scheduling** — patients, doctors, services, and schedules in PostgreSQL; view, cancel, and reschedule future visits through one confirmable flow shared by web chat, voice, and MCP.
+- 🤖 **AI assistant** — OpenAI-backed chat at `/assistant` that never exposes the API key to the browser, plus MCP tools for services, doctors, open slots, and callbacks.
+- 🛎️ **Operations center** — calls, callbacks, waitlist, urgent requests, tasks, and notifications; waitlist and no-show workers reassign freed slots and turn missed visits into staff tasks.
+- 📨 **Notification delivery** — a retry/backoff queue with RU/KK/EN templates over SMS, WhatsApp, email, Telegram, or portal, with an honest `blocked` status until a channel is wired up.
+- 📊 **Reports & analytics** — plan limits versus actual usage (bookings, notifications, voice minutes, assistant replies) and clinic reporting in the portal.
+- 🎨 **White-label & billing** — per-clinic name, colors, logo, and contacts applied across the portal and patient messages.
+- 🔌 **MCP integration** — a public Model Context Protocol endpoint exposing clinic tools to compatible AI clients.
+- 🏥 **MIS bridge** — a safe sandbox adapter by default, with DAMUMED and approved remote-gateway modes for syncing bookings to an external medical information system.
+
+## 📸 Screenshots
+
+<!-- TODO: Add screenshots or a GIF of the landing page, patient assistant, and staff portal here. -->
+
+## 🛠️ Tech Stack
+
+| Layer | Technologies |
+| --- | --- |
+| **Framework** | Next.js 16 (App Router), React 19, TypeScript 5 |
+| **Styling** | Tailwind CSS 4, Radix UI / shadcn, Lucide & Phosphor icons |
+| **AI & Voice** | OpenAI (AI SDK + Realtime SIP), Google Gemini Live, Model Context Protocol SDK |
+| **Database** | PostgreSQL (Neon serverless driver), SQL migrations |
+| **Auth & Validation** | jose (JWT sessions), bcryptjs, Zod, React Hook Form |
+| **Background jobs** | Vercel Cron workers (waitlist, no-show, reminders, outbox) |
+| **Tooling** | Vitest, ESLint, Testing Library, deployed on Vercel |
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- **Node.js 20+**
+- A **PostgreSQL** database (e.g. [Neon](https://neon.tech/))
+- An **OpenAI** API key (optional — the app runs in a safe local mode without one)
+
+### Installation
 
 ```bash
+git clone https://github.com/<your-username>/ai-dos.git
+cd ai-dos
 npm install
 cp .env.example .env.local
 npm run db:migrate
 npm run dev
 ```
 
-Обязательные переменные окружения:
+The app will be available at [http://localhost:3000](http://localhost:3000).
+
+### Environment variables
+
+Fill in `.env.local` (see `.env.example` for the full list). The essentials:
 
 ```dotenv
-DATABASE_URL=postgresql://...
-SESSION_SECRET=use-a-long-random-secret
-OPENAI_API_KEY=sk-...
-GEMINI_API_KEY=...
+DATABASE_URL=postgresql://user:password@host/database?sslmode=require
+SESSION_SECRET=replace-with-at-least-32-random-characters
+OPENAI_API_KEY=sk-replace-me
+GEMINI_API_KEY=replace-with-google-ai-studio-key
 OPENAI_MODEL=gpt-5.6
 OPENAI_REALTIME_MODEL=gpt-realtime-2.1-mini
-OPENAI_PROJECT_ID=proj_...
-OPENAI_WEBHOOK_SECRET=whsec_...
-PUBLIC_APP_URL=https://your-domain.example
-AI_RUNTIME=safe
-MIS_ADAPTER=sandbox
+PUBLIC_APP_URL=http://localhost:3000
+AI_RUNTIME=safe        # "safe" = built-in responses; switch to "openai" once quota is available
+MIS_ADAPTER=sandbox    # sandbox | damumed | remote
+CRON_SECRET=replace-with-a-long-random-secret
 ```
 
-`AI_RUNTIME=safe` включает встроенные операционные ответы, три языка и экстренную эскалацию без внешнего LLM. После пополнения OpenAI-квоты переключите значение на `openai`. `MCP_TENANT_SLUG` задаёт клинику, доступную через публичный MCP endpoint. Секреты должны храниться только в `.env.local` и переменных окружения Vercel.
+Keep all secrets in `.env.local` and your Vercel environment — never commit them.
 
-## Уведомления и операционные воркеры
-
-`/api/cron/workers` за один проход закрывает пропущенные визиты, ставит напоминания, обновляет лист ожидания, разбирает outbox и отправляет очередь уведомлений. Маршрут защищён `CRON_SECRET`, идемпотентен и рассчитан на любой интервал — от суток до нескольких минут меняется только задержка доставки.
-
-В `vercel.json` он стоит на `0 3 * * *`, потому что тариф Vercel Hobby разрешает не больше двух cron-задач и только суточную частоту. Для живой регистратуры суток мало: предложение освободившегося слота дойдёт до пациента слишком поздно. Варианты:
-
-- **Vercel Pro** — поменяйте расписание на `*/15 * * * *` прямо в `vercel.json`.
-- **Внешний планировщик** на любом тарифе — дёргайте endpoint каждые 10–15 минут:
+### Useful commands
 
 ```bash
-curl -sS -H "Authorization: Bearer $CRON_SECRET" https://<domain>/api/cron/workers
+npm run dev          # start the dev server
+npm run build        # production build
+npm run db:migrate   # apply SQL migrations
+npm run lint         # ESLint
+npm run typecheck    # tsc --noEmit
+npm run test         # Vitest
 ```
 
-Отдельный маршрут `/api/cron/reminders` остаётся доступным: он ставит только напоминания и удобен, когда нужен собственный график ночной рассылки.
+## 📁 Project Structure
 
-Канал доставки включается только когда в окружении есть обе переменные:
-
-```dotenv
-NOTIFY_CHANNEL_PRIORITY=whatsapp,sms,email,portal
-NOTIFY_SMS_WEBHOOK_URL=https://gateway.example/sms
-NOTIFY_SMS_TOKEN=...
-TELEGRAM_BOT_TOKEN=...
-WAITLIST_OFFER_TTL_MINUTES=120
-NO_SHOW_GRACE_MINUTES=30
+```
+src/
+├── app/            # App Router: landing, /assistant, /portal, /platform, API routes
+│   └── api/        # auth, booking, chat, realtime, telephony, mcp, reports, cron, …
+├── components/     # UI, marketing, portal, platform & AI elements
+├── lib/            # AI, booking, scheduling, notifications, billing, MCP, data access
+└── types/          # shared TypeScript types
+db/migrations/      # ordered SQL migrations
+workers/            # background worker logic
+tests/              # Vitest suites
 ```
 
-SMS, WhatsApp и email уходят подписанным POST в шлюз клиники (`Authorization: Bearer`, JSON с адресатом и текстом), Telegram — через Bot API. Пока учётных данных нет, уведомление получает статус `blocked`: оно видно в портале, не теряется и не выдаётся за отправленное. Повторяются только 429, 5xx и сетевые сбои — пять попыток с задержкой 2, 4, 8, 16 и 32 минуты, каждая записана в `delivery_attempts`.
+## 🗺️ Roadmap
 
-## Перенос записей во внешнюю МИС
+- [x] Secure multi-tenant portal with role-based access
+- [x] Multilingual patient assistant (RU / KK / EN)
+- [x] OpenAI Realtime SIP inbound calls & Gemini Live voice lab
+- [x] Waitlist, no-show, reminder & notification workers
+- [x] MCP endpoint and white-label branding
+- [ ] Live DAMUMED API integration (pending official credentials)
+- [ ] Additional notification providers out of the box
+- [ ] Sub-daily cron on Vercel Pro / external scheduler guidance
 
-Пациенту запись подтверждается из базы AI Dos, поэтому звонок не ждёт чужую систему. Перенос идёт фоном и обязательно перечитывает запись после сохранения — иначе нельзя отличить «форма отправилась» от «врач это видит». `MIS_ADAPTER` выбирает режим:
+## 📄 License
 
-- `sandbox` — внешней МИС нет, источник правды только AI Dos;
-- `damumed` — официальный API, ждёт учётные данные клиники;
-- `remote` — очередь забирает официальный или письменно одобренный интеграционный шлюз клиники. Локальный Browser Bridge допустим только с документированным разрешением владельца системы и клиники.
+Released under the [MIT License](LICENSE).
 
-Режим `remote` предназначен для внешнего интеграционного сервиса, который нельзя размещать в serverless-функции. По умолчанию используется официальный API. Письменно одобренный Browser Bridge запускается только в авторизованном Chrome клиники, не получает пароль и работает fail-closed. Неодобренная автоматизация интерфейса и обход правил DAMUMED запрещены. Одобренный шлюз работает через два эндпоинта под `MIS_WORKER_SECRET` и привязан к одной клинике через `MIS_WORKER_TENANT_ID`:
+---
 
-```bash
-curl -sS -H "Authorization: Bearer $MIS_WORKER_SECRET" "https://<domain>/api/mis/queue?limit=20"
-curl -sS -X POST -H "Authorization: Bearer $MIS_WORKER_SECRET" -H "Content-Type: application/json" \
-  -d '{"results":[{"appointmentId":"<uuid>","result":{"status":"synced","externalId":"A-1","verified":true}}]}' \
-  https://<domain>/api/mis/results
-```
-
-Очередь выдаёт записи под аренду на 10 минут, поэтому две копии воркера не возьмут одну запись. Отчёт применяется только к записям под арендой — повторная отправка того же отчёта ничего не меняет. Число попыток считает сервер: воркер не может обнулить бюджет повторов. Наружу уходит минимум данных — имя, телефон и дата рождения пациента, без ИИН и медицинских подробностей.
-
-Отправленная, но не перечитанная запись **не отправляется повторно**: это создало бы в МИС дубль приёма. Такой случай сразу становится задачей сотруднику вместе с внешним идентификатором.
-
-## Тариф и бренд
-
-`/portal/billing` показывает тариф, фактическое потребление за расчётный месяц (записи, уведомления, минуты голоса, ответы ассистента) и форму бренда: название, цвета, логотип и телефон регистратуры подставляются в портал и в тексты пациентам. Цены в `src/lib/billing/plans.ts` — заготовка: коммерческие условия подтверждает владелец, а списание денег проходит вне AI Dos, пока не задан `BILLING_PROVIDER`.
-
-## Проверка голоса и телефона
-
-1. Откройте `/portal/voice`, дайте браузеру доступ к микрофону, выберите язык и голос Gemini, подтвердите запись и нажмите «Начать разговор».
-2. Браузер получает от AI Dos одноразовый ephemeral-токен и подключается к Gemini Live по WebSocket; постоянный API-ключ остаётся только на сервере.
-3. Перебейте AI во время ответа: server VAD должен остановить текущую реплику. В карточке появятся транскрипт и задержка до первого аудио.
-4. Завершите сессию, прослушайте смешанную локальную запись и скачайте WebM. Аудио не загружается в облако; в БД остаются только служебные метаданные и транскрипт.
-5. Для реального номера купите E.164-номер у SIP-trunk провайдера, направьте его на `sip:$OPENAI_PROJECT_ID@sip.api.openai.com;transport=tls`, добавьте OpenAI webhook `https://<domain>/api/webhooks/openai/realtime` и сохраните номер в `/portal/voice`.
-
-Покупка номера, KYC и оплата выполняются в аккаунте телефонии владельца. AI Dos не может оформить номер без этих внешних договорных данных. DAMUMED аналогично остаётся в режиме официального API pending до выдачи документации и credentials.
-
-## Проверки
-
-```bash
-npm run lint
-npm run typecheck
-npm test
-npm audit --audit-level=moderate
-npm run build
-```
-
-## Архитектура и интеграции
-
-Подробное описание продукта и границ интеграций находится в [docs/blueprint.md](docs/blueprint.md), а соответствие полному исходному ТЗ — в [docs/requirements-traceability.md](docs/requirements-traceability.md). SQL-миграции находятся в `db/migrations`, серверные DAL-функции — в `src/lib/dal`, а ChatGPT submission checklist — в `chatgpt-app-submission.json`.
-
-Полная инструкция по установке на компьютере клиники, DAMUMED Bridge, голосу, реальному SIP-номеру, WhatsApp, ежедневной эксплуатации и go-live gate находится в [production playbook](docs/production-playbook-ru.md).
-
-AI Dos не ставит диагнозы. Перед эксплуатацией с реальными пациентами клинике необходимо утвердить политику конфиденциальности, сроки хранения данных и юридические основания обработки медицинской информации.
+<div align="center">
+  <sub>Built with Next.js & OpenAI — <a href="https://ai-dos-sage.vercel.app">try the live demo</a></sub>
+</div>
